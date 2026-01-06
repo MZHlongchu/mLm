@@ -89,7 +89,6 @@ class HuggingFaceService {
       searchParams.append('config', 'true');
       searchParams.append('sort', 'downloads');
       searchParams.append('direction', '-1');
-      searchParams.append('filter', 'gguf');
 
       const url = `${this.apiUrl}/models?${searchParams.toString()}`;
       const headers = this.getHeaders();
