@@ -189,7 +189,13 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
               >
                 <MaterialCommunityIcons name="delete-outline" size={20} color={getThemeAwareColor('#ff4444', currentTheme)} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  toggleGroup(item.groupKey);
+                }}
+              >
                 <MaterialCommunityIcons
                   name={isExpanded ? 'chevron-up' : 'chevron-down'}
                   size={20}

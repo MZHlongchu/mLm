@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { isVisionRepo, detectVisionCapabilities } from '../utils/multimodalHelpers';
 import { ModelFile, ModelFormat, MLXFileGroup } from '../types/models';
 
@@ -138,6 +139,12 @@ class HuggingFaceService {
         const hasMlxTag = model.tags?.some(tag => tag.toLowerCase().includes('mlx'));
         const hasMlxLibrary = model.library_name === 'mlx';
         const nameHasMlx = model.id?.toLowerCase().includes('mlx');
+        
+        const isMLXModel = hasMlxTag || hasMlxLibrary || nameHasMlx;
+        
+        if (Platform.OS === 'android' && isMLXModel) {
+          return false;
+        }
         
         return hasGgufTag || hasGgufLibrary || nameHasGguf || hasMlxTag || hasMlxLibrary || nameHasMlx;
       });
