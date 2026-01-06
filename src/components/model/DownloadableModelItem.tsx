@@ -202,7 +202,7 @@ const DownloadableModelItem: React.FC<DownloadableModelItemProps> = ({
           </View>
           <View style={styles.modelMetaInfo}>
             <View style={styles.metaItem}>
-              <MaterialCommunityIcons name="disc" size={16} color={themeColors.secondaryText} />
+              <MaterialCommunityIcons name="download" size={16} color={themeColors.secondaryText} />
               <Text style={[styles.metaText, { color: themeColors.secondaryText }]}>
                 {model.size}
               </Text>

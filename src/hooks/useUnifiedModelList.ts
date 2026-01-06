@@ -56,6 +56,15 @@ export const useUnifiedModelList = (
     }
   };
 
+  const formatDownloads = (count: number): string => {
+    if (count >= 1000000) {
+      return `${(count / 1000000).toFixed(1)}M`;
+    } else if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}K`;
+    }
+    return count.toString();
+  };
+
   const convertHfModelToDownloadable = (hfModel: HFModel): DownloadableModel => {
     const modelId = hfModel.id;
     const modelName = modelId.split('/').pop() || modelId;
@@ -74,8 +83,8 @@ export const useUnifiedModelList = (
 
     return {
       name: modelName,
-      description: `HuggingFace model • ${hfModel.downloads || 0} downloads • ${hfModel.likes || 0} likes`,
-      size: `${hfModel.downloads || 0} downloads`,
+      description: `HuggingFace model • ${formatDownloads(hfModel.downloads || 0)} downloads • ${hfModel.likes || 0} likes`,
+      size: `${formatDownloads(hfModel.downloads || 0)} downloads`,
       huggingFaceLink: `https://huggingface.co/${modelId}`,
       licenseLink: '',
       modelFamily: '',
