@@ -332,7 +332,7 @@ export default function DownloadsScreen() {
         <View 
           style={[
             styles.progressFill, 
-            { width: `${item.progress}%`, backgroundColor: '#4a0660' }
+            { width: `${item.progress}%`, backgroundColor: getThemeAwareColor('#4a0660', currentTheme) }
           ]} 
         />
       </View>

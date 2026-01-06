@@ -1,11 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { theme } from '../../constants/theme';
-import { getThemeAwareColor } from '../../utils/ColorUtils';
+import { getThemeAwareColor, getDocumentIconColor } from '../../utils/ColorUtils';
 import StoredModelItem from './StoredModelItem';
 import { StoredModel } from '../../services/ModelDownloaderTypes';
+
+const formatBytes = (bytes?: number) => {
+  if (bytes === undefined || bytes === null || isNaN(bytes) || bytes === 0) return '0 B';
+  try {
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    if (i < 0 || i >= sizes.length || !isFinite(bytes)) return '0 B';
+    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  } catch (error) {
+    return '0 B';
+  }
+};
 
 interface StoredModelsTabProps {
   storedModels: StoredModel[];
@@ -30,6 +43,19 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
 }) => {
   const { theme: currentTheme } = useTheme();
   const themeColors = theme[currentTheme as 'light' | 'dark'];
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupName)) {
+        newSet.delete(groupName);
+      } else {
+        newSet.add(groupName);
+      }
+      return newSet;
+    });
+  };
 
   const groupMLXModels = (models: StoredModel[]): StoredModel[] => {
     const mlxGroups: { [key: string]: StoredModel[] } = {};
@@ -48,23 +74,29 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
       }
     });
 
-    const groupedMLXModels: StoredModel[] = Object.entries(mlxGroups).map(([baseName, files]) => {
+    const groupedMLXModels: any[] = [];
+
+    Object.entries(mlxGroups).forEach(([baseName, files]) => {
       if (files.length === 1) {
-        return files[0];
+        groupedMLXModels.push(files[0]);
+        return;
       }
 
       const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
       const firstFile = files[0];
       const modelName = baseName.replace(/_/g, '/');
 
-      return {
+      const groupItem = {
         ...firstFile,
         name: modelName,
         size: totalSize,
         path: firstFile.path,
         isMLXGroup: true,
         mlxFiles: files,
-      } as StoredModel & { isMLXGroup?: boolean; mlxFiles?: StoredModel[] };
+        groupKey: baseName,
+      };
+
+      groupedMLXModels.push(groupItem);
     });
 
     return [...groupedMLXModels, ...otherModels];
@@ -109,9 +141,87 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
     </View>
   );
 
-  const renderItem = ({ item }: { item: StoredModel & { isMLXGroup?: boolean; mlxFiles?: StoredModel[] } }) => {
+  const renderItem = ({ item }: { item: any }) => {
     const isProjectorModel = item.name.toLowerCase().includes('mmproj') ||
                             item.name.toLowerCase().includes('.proj');
+    
+    if (item.isMLXGroup) {
+      const isExpanded = expandedGroups.has(item.groupKey);
+      return (
+        <View style={[styles.groupContainer, { backgroundColor: themeColors.borderColor }]}>
+          <TouchableOpacity
+            style={styles.groupHeader}
+            onPress={() => toggleGroup(item.groupKey)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.modelIconContainer}>
+              <MaterialCommunityIcons
+                name="file-document-outline"
+                size={24}
+                color={getDocumentIconColor(currentTheme)}
+              />
+            </View>
+            <View style={styles.groupInfo}>
+              <View style={styles.groupTitleRow}>
+                <Text style={[styles.groupName, { color: themeColors.text }]} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <View style={styles.mlxBadge}>
+                  <MaterialCommunityIcons name="apple" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.mlxBadgeText}>MLX</Text>
+                </View>
+              </View>
+              <View style={styles.groupMetadata}>
+                <MaterialCommunityIcons name="download" size={14} color={themeColors.secondaryText} />
+                <Text style={[styles.metaText, { color: themeColors.secondaryText }]}>
+                  {formatBytes(item.size)}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onDelete(item);
+                }}
+              >
+                <MaterialCommunityIcons name="delete-outline" size={20} color={getThemeAwareColor('#ff4444', currentTheme)} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton}>
+                <MaterialCommunityIcons
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color={themeColors.text}
+                />
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+          {isExpanded && (
+            <View style={[styles.expandedContent, { borderTopColor: themeColors.background }]}>
+              {item.mlxFiles.map((file: StoredModel, index: number) => (
+                <View key={file.path} style={styles.fileRow}>
+                  <View style={styles.fileRowContent}>
+                    <MaterialCommunityIcons
+                      name="file-document-outline"
+                      size={16}
+                      color={themeColors.secondaryText}
+                      style={styles.fileIcon}
+                    />
+                    <Text style={[styles.fileName, { color: themeColors.text }]} numberOfLines={1}>
+                      {file.name.split('_').slice(2).join('_')}
+                    </Text>
+                  </View>
+                  <Text style={[styles.fileSize, { color: themeColors.secondaryText }]}>
+                    {formatBytes(file.size)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      );
+    }
     
     return (
       <StoredModelItem
@@ -120,7 +230,7 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
         path={item.path}
         size={item.size}
         isProjector={isProjectorModel}
-        isMLXGroup={item.isMLXGroup}
+        isMLXGroup={false}
         onDelete={() => onDelete(item)}
         onExport={onExport}
         onSettings={onSettings}
@@ -132,7 +242,7 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
     <FlatList
       data={displayModels}
       renderItem={renderItem}
-      keyExtractor={item => item.path}
+      keyExtractor={(item: any) => item.isMLXGroup ? `group-${item.groupKey}` : item.path}
       contentContainerStyle={styles.list}
       ListHeaderComponent={StoredModelsHeader}
       ListEmptyComponent={
@@ -227,5 +337,108 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     marginTop: 8,
+  },
+  groupContainer: {
+    borderRadius: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+  },
+  modelIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(74, 6, 96, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  groupInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  groupTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  groupName: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginRight: 8,
+  },
+  mlxBadge: {
+    backgroundColor: '#4a0660',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 4,
+  },
+  mlxBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  groupMetadata: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  metaText: {
+    fontSize: 13,
+    marginLeft: 4,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  expandedContent: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  fileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  fileRowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  fileIcon: {
+    marginRight: 10,
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  fileSize: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });
