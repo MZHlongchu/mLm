@@ -37,6 +37,8 @@ interface DownloadItem {
   bytesDownloaded: number;
   totalBytes: number;
   status: string;
+  isMLXGroup?: boolean;
+  mlxFiles?: string[];
 }
 
 interface DownloadState {
@@ -97,14 +99,55 @@ export default function DownloadsScreen() {
     }
   };
 
-  const downloads: DownloadItem[] = Object.entries(downloadProgress)
-    .filter(([_, data]) => {
-      return data.status !== 'completed' &&
-             data.status !== 'failed' &&
-             data.status !== 'cancelled' &&
-             data.progress < 100;
-    })
-    .map(([name, data]) => ({
+  const groupMLXDownloads = (entries: [string, any][]): DownloadItem[] => {
+    const mlxGroups: { [key: string]: [string, any][] } = {};
+    const otherDownloads: [string, any][] = [];
+
+    entries.forEach(([name, data]) => {
+      const nameParts = name.split('_');
+      if (nameParts.length >= 2 && (nameParts[0].includes('/') || name.toLowerCase().includes('mlx'))) {
+        const baseModelName = nameParts.slice(0, 2).join('_');
+        if (!mlxGroups[baseModelName]) {
+          mlxGroups[baseModelName] = [];
+        }
+        mlxGroups[baseModelName].push([name, data]);
+      } else {
+        otherDownloads.push([name, data]);
+      }
+    });
+
+    const groupedMLX: DownloadItem[] = Object.entries(mlxGroups).map(([baseName, files]) => {
+      if (files.length === 1) {
+        const [name, data] = files[0];
+        return {
+          id: data.downloadId || 0,
+          name,
+          progress: data.progress || 0,
+          bytesDownloaded: data.bytesDownloaded || 0,
+          totalBytes: data.totalBytes || 0,
+          status: data.status || 'unknown'
+        };
+      }
+
+      const totalBytesDownloaded = files.reduce((sum, [_, data]) => sum + (data.bytesDownloaded || 0), 0);
+      const totalBytes = files.reduce((sum, [_, data]) => sum + (data.totalBytes || 0), 0);
+      const avgProgress = totalBytes > 0 ? (totalBytesDownloaded / totalBytes) * 100 : 0;
+      const firstFile = files[0][1];
+      const modelName = baseName.replace(/_/g, '/');
+
+      return {
+        id: firstFile.downloadId || 0,
+        name: modelName,
+        progress: avgProgress,
+        bytesDownloaded: totalBytesDownloaded,
+        totalBytes: totalBytes,
+        status: firstFile.status || 'unknown',
+        isMLXGroup: true,
+        mlxFiles: files.map(([name]) => name)
+      };
+    });
+
+    const others: DownloadItem[] = otherDownloads.map(([name, data]) => ({
       id: data.downloadId || 0,
       name,
       progress: data.progress || 0,
@@ -112,6 +155,18 @@ export default function DownloadsScreen() {
       totalBytes: data.totalBytes || 0,
       status: data.status || 'unknown'
     }));
+
+    return [...groupedMLX, ...others];
+  };
+
+  const activeDownloads = Object.entries(downloadProgress).filter(([_, data]) => {
+    return data.status !== 'completed' &&
+           data.status !== 'failed' &&
+           data.status !== 'cancelled' &&
+           data.progress < 100;
+  });
+
+  const downloads: DownloadItem[] = groupMLXDownloads(activeDownloads);
 
   useEffect(() => {
     modelDownloader.ensureDownloadsAreRunning().catch(() => {
@@ -271,7 +326,7 @@ export default function DownloadsScreen() {
     saveDownloadProgress();
   }, [downloadProgress]);
 
-  const handleCancel = (modelName: string) => {
+  const handleCancel = (modelName: string, mlxFiles?: string[]) => {
     const confirmCancellation = async () => {
       hideDialog();
 
@@ -282,15 +337,25 @@ export default function DownloadsScreen() {
       buttonProcessingRef.current.add(modelName);
 
       try {
-        await modelDownloader.cancelDownload(modelName);
-
-        setDownloadProgress(prev => {
-          const newProgress = { ...prev };
-          delete newProgress[modelName];
-          return newProgress;
-        });
-
-        await removePersistedActiveDownload(modelName);
+        if (mlxFiles && mlxFiles.length > 0) {
+          for (const fileName of mlxFiles) {
+            await modelDownloader.cancelDownload(fileName);
+            setDownloadProgress(prev => {
+              const newProgress = { ...prev };
+              delete newProgress[fileName];
+              return newProgress;
+            });
+            await removePersistedActiveDownload(fileName);
+          }
+        } else {
+          await modelDownloader.cancelDownload(modelName);
+          setDownloadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[modelName];
+            return newProgress;
+          });
+          await removePersistedActiveDownload(modelName);
+        }
       } catch (error) {
         showDialog('Error', 'Failed to cancel download', [
           <Button key="ok" onPress={hideDialog}>OK</Button>
@@ -313,13 +378,20 @@ export default function DownloadsScreen() {
   const renderItem = ({ item }: { item: DownloadItem }) => (
     <View style={[styles.downloadItem, { backgroundColor: themeColors.borderColor }]}>
       <View style={styles.downloadHeader}>
-        <Text style={[styles.downloadName, { color: themeColors.text }]}>
-          {item.name}
-        </Text>
+        <View style={styles.downloadNameContainer}>
+          <Text style={[styles.downloadName, { color: themeColors.text }]}>
+            {item.name}
+          </Text>
+          {item.isMLXGroup && (
+            <View style={styles.mlxBadge}>
+              <Text style={styles.mlxBadgeText}>MLX</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.downloadActions}>
           <TouchableOpacity
             style={styles.cancelButton}
-            onPress={() => handleCancel(item.name)}
+            onPress={() => handleCancel(item.name, item.mlxFiles)}
           >
             <MaterialCommunityIcons name="close-circle" size={24} color={getThemeAwareColor('#ff4444', currentTheme)} />
           </TouchableOpacity>
@@ -399,10 +471,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  downloadNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
   downloadName: {
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 4,
+    marginRight: 8,
+  },
+  mlxBadge: {
+    backgroundColor: '#007AFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  mlxBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '600',
   },
   downloadActions: {
     flexDirection: 'row',
