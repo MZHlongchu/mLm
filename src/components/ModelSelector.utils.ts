@@ -76,9 +76,14 @@ export const isMLXModel = (model: StoredModel): boolean => {
   const path = model.path.toLowerCase();
   const name = model.name.toLowerCase();
   return path.includes('/models/mlx/') || 
-         name.endsWith('.safetensors') || 
+         name.endsWith('.safetensors') ||
+         path.endsWith('.safetensors') ||
+         name.endsWith('.json') ||
+         path.endsWith('.json') ||
          name.includes('mlx-community') ||
-         path.includes('mlx-community');
+         path.includes('mlx-community') ||
+         name.includes('mlx_') ||
+         path.includes('/mlx/');
 };
 
 export const groupMLXModels = (items: StoredModel[]): (StoredModel | MLXGroup)[] => {
