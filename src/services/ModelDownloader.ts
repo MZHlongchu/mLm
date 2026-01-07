@@ -182,6 +182,26 @@ class ModelDownloader extends EventEmitter {
     }
   }
 
+  async downloadMLXModel(
+    modelId: string,
+    files: Array<{ filename: string; downloadUrl: string; size: number }>,
+    authToken?: string
+  ): Promise<{ downloadId: number }> {
+    if (!this.isInitialized) {
+      await this.initializationPromise;
+    }
+
+    try {
+      if (!this.hasNotificationPermission) {
+        this.hasNotificationPermission = await this.requestNotificationPermissions();
+      }
+      
+      return await this.downloadTaskManager.downloadMLXModel(modelId, files, authToken);
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async pauseDownload(downloadId: number): Promise<void> {
     await this.downloadTaskManager.pauseDownload(downloadId);
   }

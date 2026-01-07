@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Searchbar, Button } from 'react-native-paper';
+import { Searchbar, Button, ActivityIndicator } from 'react-native-paper';
 import { useTheme } from '../../context/ThemeContext';
 import { theme } from '../../constants/theme';
 
@@ -9,13 +9,15 @@ interface HuggingFaceSearchBarProps {
   onSearchChange: (query: string) => void;
   onSearchSubmit: () => void;
   onClearSearch: () => void;
+  isLoading: boolean;
 }
 
 export const HuggingFaceSearchBar: React.FC<HuggingFaceSearchBarProps> = ({
   searchQuery,
   onSearchChange,
   onSearchSubmit,
-  onClearSearch
+  onClearSearch,
+  isLoading
 }) => {
   const { theme: currentTheme } = useTheme();
   const themeColors = theme[currentTheme];
@@ -42,6 +44,7 @@ export const HuggingFaceSearchBar: React.FC<HuggingFaceSearchBarProps> = ({
           >
             Clear Search
           </Button>
+          {isLoading && <ActivityIndicator size="small" color={themeColors.primary} style={styles.loader} />}
         </View>
       )}
     </>
@@ -53,9 +56,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   searchActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
+    gap: 12,
   },
   clearButton: {
     alignSelf: 'flex-start',
+  },
+  loader: {
+    marginLeft: 8,
   },
 });

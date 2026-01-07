@@ -157,6 +157,22 @@ const HuggingFaceModelList: React.FC<HuggingFaceModelListProps> = ({
     }
   };
 
+  const handleDownloadMLXModel = async (modelId: string, files: Array<{ filename: string; downloadUrl: string; size: number }>) => {
+    navigation.navigate('Downloads' as never);
+    setSelectedModel(null);
+
+    try {
+      const { downloadId } = await modelDownloader.downloadMLXModel(
+        modelId,
+        files,
+        huggingFaceService.getAccessToken()
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showDialog('Download Error', `Failed to start MLX model download: ${errorMessage}`);
+    }
+  };
+
   const renderModelCard = (model: HFModel) => {
     const isDownloaded = isModelDownloaded(model.id);
     
@@ -219,17 +235,7 @@ const HuggingFaceModelList: React.FC<HuggingFaceModelListProps> = ({
     );
   };
 
-  const renderModelDetails = () => {
-    return (
-      <ModelFilesDialog
-        visible={!!selectedModel}
-        onClose={() => setSelectedModel(null)}
-        modelDetails={selectedModel}
-        onDownloadFile={handleDownloadFile}
-        isDownloading={modelDetailsLoading}
-      />
-    );
-  };
+
 
   return (
     <View style={styles.container}>
@@ -281,7 +287,16 @@ const HuggingFaceModelList: React.FC<HuggingFaceModelListProps> = ({
         </Portal>
       )}
 
-      {renderModelDetails()}
+      {selectedModel && (
+        <ModelFilesDialog
+          visible={!!selectedModel}
+          onClose={() => setSelectedModel(null)}
+          modelDetails={selectedModel}
+          onDownloadFile={handleDownloadFile}
+          onDownloadMLXModel={handleDownloadMLXModel}
+          isDownloading={modelDetailsLoading}
+        />
+      )}
 
       <Portal>
         <Dialog visible={dialogVisible} onDismiss={hideDialog}>
