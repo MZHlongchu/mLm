@@ -34,16 +34,18 @@ export const HuggingFaceSearchBar: React.FC<HuggingFaceSearchBarProps> = ({
         iconColor={themeColors.text}
       />
 
-      {searchQuery.length > 0 && (
+      {(searchQuery.length > 0 || isLoading) && (
         <View style={styles.searchActions}>
-          <Button
-            mode="outlined"
-            onPress={onClearSearch}
-            style={styles.clearButton}
-            icon="close"
-          >
-            Clear Search
-          </Button>
+          {searchQuery.length > 0 && (
+            <Button
+              mode="outlined"
+              onPress={onClearSearch}
+              style={styles.clearButton}
+              icon="close"
+            >
+              Clear Search
+            </Button>
+          )}
           {isLoading && <ActivityIndicator size="small" color={themeColors.primary} style={styles.loader} />}
         </View>
       )}

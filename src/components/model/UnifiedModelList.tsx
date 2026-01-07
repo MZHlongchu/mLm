@@ -101,6 +101,7 @@ const UnifiedModelList: React.FC<UnifiedModelListProps> = ({
           onSearchChange={logic.handleSearch}
           onSearchSubmit={logic.handleSearchSubmit}
           onClearSearch={logic.clearSearch}
+          isLoading={logic.hfLoading}
         />
 
         {logic.showingHfResults ? (
