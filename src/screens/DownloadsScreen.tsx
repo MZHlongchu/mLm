@@ -13,7 +13,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
-import { ModelManager } from 'react-native-nitro-mlx';
 import { modelDownloader } from '../services/ModelDownloader';
 import { useDownloads } from '../context/DownloadContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -62,7 +61,6 @@ export default function DownloadsScreen() {
   const buttonProcessingRef = useRef<Set<string>>(new Set());
   const appState = useRef(AppState.currentState);
   const insets = useSafeAreaInsets();
-  const [expandedDownloads, setExpandedDownloads] = useState<Set<string>>(new Set());
 
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogTitle, setDialogTitle] = useState('');
@@ -70,18 +68,6 @@ export default function DownloadsScreen() {
   const [dialogActions, setDialogActions] = useState<React.ReactNode[]>([]);
 
   const hideDialog = () => setDialogVisible(false);
-
-  const toggleExpand = (modelName: string) => {
-    setExpandedDownloads(prev => {
-      const next = new Set(prev);
-      if (next.has(modelName)) {
-        next.delete(modelName);
-      } else {
-        next.add(modelName);
-      }
-      return next;
-    });
-  };
 
   const showDialog = (title: string, message: string, actions: React.ReactNode[]) => {
     setDialogTitle(title);
@@ -131,6 +117,58 @@ export default function DownloadsScreen() {
     modelDownloader.ensureDownloadsAreRunning().catch(() => {
     });
   }, []);
+
+  useEffect(() => {
+    const checkMLXCompletion = async () => {
+      try {
+        const keys = await AsyncStorage.getAllKeys();
+        const mlxPendingKeys = keys.filter(k => k.startsWith('mlx_pending_'));
+        
+        for (const key of mlxPendingKeys) {
+          const dataStr = await AsyncStorage.getItem(key);
+          if (!dataStr) continue;
+          
+          const data = JSON.parse(dataStr);
+          const { modelId, files } = data;
+          
+          const allComplete = files.every((file: any) => {
+            const progress = downloadProgress[file.filename];
+            return progress && progress.status === 'completed';
+          });
+          
+          if (allComplete) {
+            const mlxDir = `${FileSystem.documentDirectory}huggingface/models/${modelId.replace('/', '_')}`;
+            await FileSystem.makeDirectoryAsync(mlxDir, { intermediates: true });
+            
+            for (const file of files) {
+              const sourceFile = `${FileSystem.documentDirectory}models/${file.filename}`;
+              const sourceInfo = await FileSystem.getInfoAsync(sourceFile);
+              
+              if (sourceInfo.exists) {
+                const targetFile = `${mlxDir}/${file.rfilename}`;
+                await FileSystem.moveAsync({
+                  from: sourceFile,
+                  to: targetFile
+                });
+                
+                setDownloadProgress(prev => {
+                  const newProgress = { ...prev };
+                  delete newProgress[file.filename];
+                  return newProgress;
+                });
+              }
+            }
+            
+            await AsyncStorage.removeItem(key);
+            modelDownloader.refresh();
+          }
+        }
+      } catch (error) {
+      }
+    };
+    
+    checkMLXCompletion();
+  }, [downloadProgress]);
 
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
@@ -286,8 +324,6 @@ export default function DownloadsScreen() {
   }, [downloadProgress]);
 
   const handleCancel = (modelName: string) => {
-    const isMLXDownload = modelName.includes('/') || modelName.includes('mlx-community');
-    
     const confirmCancellation = async () => {
       hideDialog();
 
@@ -298,31 +334,13 @@ export default function DownloadsScreen() {
       buttonProcessingRef.current.add(modelName);
 
       try {
-        if (isMLXDownload) {
-          try {
-            await ModelManager.deleteModel(modelName);
-          } catch (error) {
-          }
-          
-          setDownloadProgress(prev => {
-            const newProgress = { ...prev };
-            delete newProgress[modelName];
-            return newProgress;
-          });
-          await removePersistedActiveDownload(modelName);
-          
-          showDialog('Download Cancelled', 'MLX download cancelled and all partial files removed.', [
-            <Button key="ok" onPress={hideDialog}>OK</Button>
-          ]);
-        } else {
-          await modelDownloader.cancelDownload(modelName);
-          setDownloadProgress(prev => {
-            const newProgress = { ...prev };
-            delete newProgress[modelName];
-            return newProgress;
-          });
-          await removePersistedActiveDownload(modelName);
-        }
+        await modelDownloader.cancelDownload(modelName);
+        setDownloadProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[modelName];
+          return newProgress;
+        });
+        await removePersistedActiveDownload(modelName);
       } catch (error) {
         showDialog('Error', 'Failed to cancel download', [
           <Button key="ok" onPress={hideDialog}>OK</Button>
@@ -334,9 +352,7 @@ export default function DownloadsScreen() {
 
     showDialog(
       'Cancel Download',
-      isMLXDownload 
-        ? 'Cancel this MLX download? All partial files will be deleted and you will need to start over if you download again.'
-        : 'Are you sure you want to cancel this download?',
+      'Are you sure you want to cancel this download?',
       [
         <Button key="cancel" onPress={hideDialog}>No</Button>,
         <Button key="confirm" onPress={confirmCancellation}>Yes</Button>
@@ -346,41 +362,7 @@ export default function DownloadsScreen() {
 
   const renderItem = ({ item }: { item: DownloadItem }) => {
     const isMLXDownload = item.name.includes('/') || item.name.includes('mlx-community');
-    const progressText = isMLXDownload && item.totalBytes === 1000000000
-      ? `${Math.floor(item.progress || 0)}%`
-      : `${Math.floor(item.progress || 0)}% • ${formatBytes(item.bytesDownloaded || 0)} / ${formatBytes(item.totalBytes || 0)}`;
-    
-    const downloadData = downloadProgress[item.name];
-    const hasMLXFiles = downloadData?.mlxFiles && downloadData.mlxFiles.length > 0;
-    const isExpanded = expandedDownloads.has(item.name);
-    
-    const calculateFileProgress = (fileIndex: number) => {
-      if (!hasMLXFiles || !downloadData.mlxFiles) return 0;
-      
-      const totalSize = downloadData.mlxFiles.reduce((sum, f) => sum + f.size, 0);
-      const bytesDownloaded = (item.progress / 100) * totalSize;
-      
-      let cumulativeSize = 0;
-      for (let i = 0; i < downloadData.mlxFiles.length; i++) {
-        const file = downloadData.mlxFiles[i];
-        if (i < fileIndex) {
-          cumulativeSize += file.size;
-        } else if (i === fileIndex) {
-          const fileStartByte = cumulativeSize;
-          const fileEndByte = cumulativeSize + file.size;
-          
-          if (bytesDownloaded <= fileStartByte) {
-            return 0;
-          } else if (bytesDownloaded >= fileEndByte) {
-            return 100;
-          } else {
-            const fileProgress = ((bytesDownloaded - fileStartByte) / file.size) * 100;
-            return Math.min(100, Math.max(0, fileProgress));
-          }
-        }
-      }
-      return 0;
-    };
+    const progressText = `${Math.floor(item.progress || 0)}% • ${formatBytes(item.bytesDownloaded || 0)} / ${formatBytes(item.totalBytes || 0)}`;
     
     return (
       <View style={[styles.downloadItem, { backgroundColor: themeColors.borderColor }]}>
@@ -389,18 +371,6 @@ export default function DownloadsScreen() {
             {item.name}
           </Text>
           <View style={styles.downloadActions}>
-            {hasMLXFiles && (
-              <TouchableOpacity
-                style={styles.expandButton}
-                onPress={() => toggleExpand(item.name)}
-              >
-                <MaterialCommunityIcons 
-                  name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-                  size={20} 
-                  color={themeColors.text} 
-                />
-              </TouchableOpacity>
-            )}
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => handleCancel(item.name)}
@@ -422,57 +392,6 @@ export default function DownloadsScreen() {
             ]} 
           />
         </View>
-        
-        {isExpanded && hasMLXFiles && (
-          <View style={[styles.expandedContent, { borderTopColor: themeColors.background }]}>
-            <Text style={[styles.filesHeader, { color: themeColors.secondaryText }]}>
-              {downloadData.mlxFiles.length} files
-            </Text>
-            {downloadData.mlxFiles.map((file, index) => {
-              const fileProgress = calculateFileProgress(index);
-              const isFileComplete = fileProgress >= 100;
-              const isFileInProgress = fileProgress > 0 && fileProgress < 100;
-              
-              return (
-                <View key={`${item.name}-${index}`} style={styles.fileRow}>
-                  <View style={styles.fileRowContent}>
-                    <MaterialCommunityIcons
-                      name={isFileComplete ? "check-circle" : isFileInProgress ? "download" : "file-document-outline"}
-                      size={16}
-                      color={isFileComplete ? getThemeAwareColor('#4CAF50', currentTheme) : themeColors.secondaryText}
-                      style={styles.fileIcon}
-                    />
-                    <View style={styles.fileNameContainer}>
-                      <Text style={[styles.fileName, { color: themeColors.text }]} numberOfLines={1}>
-                        {file.filename}
-                      </Text>
-                      {isFileInProgress && (
-                        <View style={[styles.fileProgressBar, { backgroundColor: themeColors.background }]}>
-                          <View 
-                            style={[
-                              styles.fileProgressFill, 
-                              { width: `${fileProgress}%`, backgroundColor: getThemeAwareColor('#4a0660', currentTheme) }
-                            ]} 
-                          />
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                  <View style={styles.fileMetadata}>
-                    {isFileInProgress && (
-                      <Text style={[styles.fileProgress, { color: themeColors.secondaryText }]}>
-                        {Math.floor(fileProgress)}%
-                      </Text>
-                    )}
-                    <Text style={[styles.fileSize, { color: themeColors.secondaryText }]}>
-                      {formatBytes(file.size)}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
       </View>
     );
   };
@@ -571,62 +490,5 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     padding: 4,
-  },
-  expandButton: {
-    padding: 4,
-    marginRight: 4,
-  },
-  expandedContent: {
-    borderTopWidth: 1,
-    marginTop: 12,
-    paddingTop: 12,
-  },
-  filesHeader: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  fileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  fileRowContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
-  },
-  fileIcon: {
-    marginRight: 8,
-  },
-  fileNameContainer: {
-    flex: 1,
-  },
-  fileName: {
-    fontSize: 13,
-    marginBottom: 4,
-  },
-  fileMetadata: {
-    alignItems: 'flex-end',
-  },
-  fileProgress: {
-    fontSize: 11,
-    marginBottom: 2,
-  },
-  fileSize: {
-    fontSize: 12,
-  },
-  fileProgressBar: {
-    height: 3,
-    borderRadius: 1.5,
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  fileProgressFill: {
-    height: '100%',
-    borderRadius: 1.5,
   },
 }); 

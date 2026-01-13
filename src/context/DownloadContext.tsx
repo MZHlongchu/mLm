@@ -10,10 +10,6 @@ interface DownloadProgress {
     status: string;
     downloadId: number;
     isPaused?: boolean;
-    mlxFiles?: Array<{
-      filename: string;
-      size: number;
-    }>;
   };
 }
 

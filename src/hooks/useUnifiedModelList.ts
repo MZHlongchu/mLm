@@ -6,6 +6,7 @@ import { modelDownloader } from '../services/ModelDownloader';
 import { DownloadableModel } from '../components/model/DownloadableModelItem';
 import { ModelFormat } from '../types/models';
 import { ModelManager } from 'react-native-nitro-mlx';
+import * as FileSystem from 'expo-file-system';
 
 export const useUnifiedModelList = (
   storedModels: any[],
@@ -190,61 +191,24 @@ export const useUnifiedModelList = (
         return;
       }
 
-      navigation.navigate('Downloads' as never);
-
       try {
-        const downloadId = Date.now();
-        const estimatedSize = 1000000000;
-        
         const details = await huggingFaceService.getModelDetails(modelId);
-        const mlxFiles = details.mlxFileGroup?.required.map(file => ({
-          filename: file.rfilename,
-          size: file.size
-        })) || [];
+        const mlxFiles = details.mlxFileGroup?.required || [];
         
-        setDownloadProgress((prev: any) => ({
-          ...prev,
-          [modelId]: {
-            progress: 0,
-            bytesDownloaded: 0,
-            totalBytes: estimatedSize,
-            status: 'downloading',
-            downloadId,
-            mlxFiles
-          }
+        if (mlxFiles.length === 0) {
+          showDialog('Error', 'No MLX files found for this model');
+          return;
+        }
+
+        const filesToDownload = mlxFiles.map(file => ({
+          filename: `${modelId.replace('/', '_')}_${file.rfilename}`,
+          downloadUrl: `https://huggingface.co/${modelId}/resolve/main/${file.rfilename}`,
+          size: file.size,
+          rfilename: file.rfilename
         }));
 
-        await ModelManager.download(modelId, (progress) => {
-          const progressPercent = progress * 100;
-          const bytesDownloaded = Math.floor(estimatedSize * progress);
-          
-          setDownloadProgress((prev: any) => ({
-            ...prev,
-            [modelId]: {
-              ...prev[modelId],
-              progress: progressPercent,
-              bytesDownloaded,
-              totalBytes: estimatedSize,
-              status: progress >= 1 ? 'completed' : 'downloading',
-              downloadId
-            }
-          }));
-        });
-
-        setDownloadProgress((prev: any) => {
-          const newProgress = { ...prev };
-          delete newProgress[modelId];
-          return newProgress;
-        });
-        
-        showDialog('Success', `${modelId} downloaded successfully`);
-        modelDownloader.refresh();
+        await proceedWithMultipleDownloads(filesToDownload, modelId);
       } catch (error) {
-        setDownloadProgress((prev: any) => {
-          const newProgress = { ...prev };
-          delete newProgress[modelId];
-          return newProgress;
-        });
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         showDialog('Download Error', `Failed to download MLX model: ${errorMessage}`);
       }
@@ -331,6 +295,12 @@ export const useUnifiedModelList = (
 
   const proceedWithMultipleDownloads = async (files: any[], modelId: string) => {
     navigation.navigate('Downloads' as never);
+
+    await AsyncStorage.setItem(`mlx_pending_${modelId}`, JSON.stringify({
+      modelId,
+      files: files.map(f => ({ filename: f.filename, rfilename: f.rfilename })),
+      timestamp: Date.now()
+    }));
 
     const downloadPromises = files.map(async (file) => {
       const fullFilename = file.filename;
