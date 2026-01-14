@@ -34,6 +34,10 @@ class EngineService {
     return this.map[this.engine];
   }
 
+  ready() {
+    return this.map[this.engine].ready();
+  }
+
   caps() {
     return featureCaps[this.engine];
   }

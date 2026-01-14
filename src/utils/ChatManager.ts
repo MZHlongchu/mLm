@@ -599,8 +599,9 @@ class ChatManager {
   async generateChatTitle(userMessage: string): Promise<string> {
     try {
       if (this.currentProvider === 'local') {
-        const { llamaManager } = await import('./LlamaManager');
-        if (llamaManager.isInitialized()) {
+        const { engineService } = await import('../services/inference-engine-service');
+        if (engineService.mgr().ready()) {
+          const { llamaManager } = await import('./LlamaManager');
           return await llamaManager.generateChatTitle(userMessage);
         }
       } else if (
@@ -616,8 +617,9 @@ class ChatManager {
         }
       }
 
-      const { llamaManager } = await import('./LlamaManager');
-      if (llamaManager.isInitialized()) {
+      const { engineService } = await import('../services/inference-engine-service');
+      if (engineService.mgr().ready()) {
+        const { llamaManager } = await import('./LlamaManager');
         return await llamaManager.generateChatTitle(userMessage);
       }
 

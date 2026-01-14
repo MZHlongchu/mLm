@@ -432,7 +432,7 @@ class RAGServiceClass {
   }
 
   private async ensureEmbeddingSupport(): Promise<void> {
-    if (!llamaManager.isInitialized()) {
+    if (!engineService.mgr().ready()) {
       throw new Error('Model not initialized');
     }
 

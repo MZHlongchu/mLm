@@ -22,6 +22,7 @@ import CameraOverlay from '../CameraOverlay';
 import { llamaManager } from '../../utils/LlamaManager';
 import { Dialog, Portal, Text, Button } from 'react-native-paper';
 import { modelDownloader } from '../../services/ModelDownloader';
+import { engineService } from '../../services/inference-engine-service';
 import AITermsDialog from './AITermsDialog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import StopButton from '../StopButton';
@@ -419,7 +420,7 @@ export default function ChatInput({
     }
 
     const isOnlineModel = ['gemini', 'chatgpt', 'deepseek', 'claude', 'apple-foundation'].includes(selectedModelPath);
-    if (!isOnlineModel && (!llamaManager.isInitialized() || isModelLoading)) {
+    if (!isOnlineModel && (!engineService.mgr().ready() || isModelLoading)) {
       showDialog(
         'Model Not Ready',
         'Please wait for the local model to finish loading before sending a message.'
@@ -460,7 +461,7 @@ export default function ChatInput({
         }
 
         const isRemoteOrApple = selectedModelPath && ['gemini', 'chatgpt', 'deepseek', 'claude', 'apple-foundation'].includes(selectedModelPath);
-        if (!isRemoteOrApple && !llamaManager.isInitialized()) {
+        if (!isRemoteOrApple && !engineService.mgr().ready()) {
           showDialog('Model not ready', 'Load a local model before using retrieval.');
           return { handled, cancelled, documentId };
         }
