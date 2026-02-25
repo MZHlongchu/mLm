@@ -698,7 +698,7 @@ export default function ChatView({
                       style={styles.statIcon}
                     />
                     <Text style={[styles.statsText, { color: themeColors.secondaryText }]}> 
-                      1st token: {formatTime(stats.firstTokenTime)}
+                      TTFT: {formatTime(stats.firstTokenTime)}
                     </Text>
                   </View>
                 ) : null}

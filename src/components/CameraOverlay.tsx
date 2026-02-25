@@ -15,6 +15,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import Slider from '@react-native-community/slider';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
@@ -51,6 +53,7 @@ export default function CameraOverlay({ visible, onClose, onPhotoTaken, useRag =
   const [processingMode, setProcessingMode] = useState<ImageProcessingMode>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState('');
+  const [imgCompress, setImgCompress] = useState(0.6);
   const cameraRef = useRef<CameraView>(null);
   const { theme: currentTheme } = useTheme();
   const themeColors = theme[currentTheme as 'light' | 'dark'];
@@ -88,14 +91,26 @@ export default function CameraOverlay({ visible, onClose, onPhotoTaken, useRag =
 
     try {
       setIsProcessing(true);
+      setProcessingProgress('Optimizing image...');
+
+      const processed = await manipulateAsync(
+        capturedPhotoUri,
+        [],
+        {
+          compress: imgCompress,
+          format: SaveFormat.JPEG,
+        }
+      );
+
+      const imgUri = processed?.uri || capturedPhotoUri;
       
       if (processingMode === 'ocr') {
-        const extractedText = await performOCROnImage(capturedPhotoUri, setProcessingProgress);
-        const ocrMessage = createOCRMessage(extractedText, capturedPhotoUri, 'camera_photo', userPrompt);
-        onPhotoTaken(capturedPhotoUri, ocrMessage);
+        const extractedText = await performOCROnImage(imgUri, setProcessingProgress);
+        const ocrMessage = createOCRMessage(extractedText, imgUri, 'camera_photo', userPrompt);
+        onPhotoTaken(imgUri, ocrMessage);
       } else if (processingMode === 'multimodal') {
-        const multimodalMessage = createMultimodalMessage(capturedPhotoUri, userPrompt);
-        onPhotoTaken(capturedPhotoUri, multimodalMessage);
+        const multimodalMessage = createMultimodalMessage(imgUri, userPrompt);
+        onPhotoTaken(imgUri, multimodalMessage);
       }
       
       setShowPromptDialog(false);
@@ -236,7 +251,7 @@ export default function CameraOverlay({ visible, onClose, onPhotoTaken, useRag =
                     : 'What would you like to ask about this image?'
                   }
                 </Text>
-                
+
                 <TextInput
                   style={[
                     styles.promptInput,
@@ -258,6 +273,23 @@ export default function CameraOverlay({ visible, onClose, onPhotoTaken, useRag =
                   maxLength={500}
                   editable={!isProcessing}
                 />
+
+                <View style={styles.compWrap}>
+                  <View style={styles.compHead}>
+                    <Text style={[styles.compLabel, { color: themeColors.text }]}>Image Quality</Text>
+                    <Text style={[styles.compValue, { color: themeColors.secondaryText }]}>{Math.round(imgCompress * 100)}%</Text>
+                  </View>
+                  <Slider
+                    minimumValue={0.1}
+                    maximumValue={1}
+                    step={0.05}
+                    value={imgCompress}
+                    onValueChange={setImgCompress}
+                    disabled={isProcessing}
+                    minimumTrackTintColor={getThemeAwareColor('#4a0660', currentTheme)}
+                    thumbTintColor={getThemeAwareColor('#4a0660', currentTheme)}
+                  />
+                </View>
 
                 {isProcessing && (
                   <View style={styles.processingContainer}>
@@ -491,5 +523,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     minWidth: '100%',
+  },
+  compWrap: {
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  compHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  compLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  compValue: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 4,
   },
 }); 
