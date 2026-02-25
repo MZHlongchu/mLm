@@ -50,7 +50,7 @@ export class MessageProcessingService {
       const processedMessages = currentMessages.some(msg => msg.role === 'system')
         ? currentMessages
         : [{ role: 'system', content: systemPrompt, id: 'system-prompt' }, ...currentMessages];
-      const skipRag = this.shouldSkipRag(processedMessages);
+      const skipRag = this.shouldSkipRag(processedMessages) || await this.shouldSkipRagForInput(processedMessages);
       
       const assistantMessage: Omit<ChatMessage, 'id'> = {
         role: 'assistant',
@@ -858,6 +858,53 @@ export class MessageProcessingService {
         return false;
       }
     }
+    return false;
+  }
+
+  private async shouldSkipRagForInput(messages: Array<{ role: string; content: string }>): Promise<boolean> {
+    let lastUserText = '';
+
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const entry = messages[index];
+      if (entry.role !== 'user') {
+        continue;
+      }
+
+      try {
+        const parsed = JSON.parse(entry.content);
+        if (parsed?.type === 'ocr_result') {
+          lastUserText = String(parsed?.userPrompt || '').trim();
+        } else if (parsed?.type === 'file_upload') {
+          lastUserText = String(parsed?.userContent || '').trim();
+        } else {
+          lastUserText = String(entry.content || '').trim();
+        }
+      } catch {
+        lastUserText = String(entry.content || '').trim();
+      }
+      break;
+    }
+
+    const compactText = lastUserText.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const tokenCount = compactText.length > 0 ? compactText.split(/\s+/).length : 0;
+
+    if (compactText.length <= 4 || tokenCount <= 1) {
+      return true;
+    }
+
+    if (/^(hi|hey|hello|yo|sup|hola|hii+)$/.test(compactText)) {
+      return true;
+    }
+
+    try {
+      const status = await RAGService.getStatus();
+      if (!status.enabled || status.documentCount <= 0) {
+        return true;
+      }
+    } catch {
+      return true;
+    }
+
     return false;
   }
 }
