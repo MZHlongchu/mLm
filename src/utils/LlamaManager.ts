@@ -686,17 +686,14 @@ class LlamaManager {
     releasePromises.push(
       withTimeout(
         contextToRelease.release(),
-        5000
+        7000
       ).catch(contextError => {
         console.error('context_release_error', contextError);
       })
     );
     
     await Promise.all(releasePromises).catch(() => {});
-    try {
-      await releaseAllLlama();
-    } catch (error) {
-    }
+    withTimeout(releaseAllLlama(), 3000).catch(() => {});
   }
 
   emergencyCleanup() {
@@ -802,7 +799,8 @@ class LlamaManager {
       this.isCancelled = true;
       this.tokenProcessingService.clearTokenQueue();
       
-      await withTimeout(this.release(), 8000).catch(error => {
+      const releaseTimeoutMs = this.multimodalService.isMultimodalInitialized() ? 12000 : 8000;
+      await withTimeout(this.release(), releaseTimeoutMs).catch(error => {
         console.error('model_release_timeout', error);
         this.emergencyCleanup();
       });
@@ -826,7 +824,8 @@ class LlamaManager {
     this.isUnloading = true;
     
     try {
-      await withTimeout(this.release(), 8000);
+      const releaseTimeoutMs = this.multimodalService.isMultimodalInitialized() ? 12000 : 8000;
+      await withTimeout(this.release(), releaseTimeoutMs);
     } catch (error) {
       console.error('model_release_error', error);
       this.emergencyCleanup();
