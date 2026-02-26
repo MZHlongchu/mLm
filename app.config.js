@@ -19,7 +19,7 @@ export default {
     updates: {
       enabled: true,
       checkAutomatically: 'ON_LOAD',
-      url: "https://u.expo.dev/5ef5d807-bc8b-4dcb-a3f4-2bad3c098b3e"
+      url: "https://u.expo.dev/a539a082-58a3-4f29-9bb7-107913124e7d"
     },
     assetBundlePatterns: [
       "**/*"
@@ -115,7 +115,7 @@ export default {
       FIREBASE_APP_ID: process.env.FIREBASE_APP_ID,
       FIREBASE_MEASUREMENT_ID: process.env.FIREBASE_MEASUREMENT_ID,
       eas: {
-        projectId: "5ef5d807-bc8b-4dcb-a3f4-2bad3c098b3e"
+        projectId: "a539a082-58a3-4f29-9bb7-107913124e7d"
       },
     },
     plugins: [
