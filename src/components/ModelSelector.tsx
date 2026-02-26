@@ -1,8 +1,11 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import {
   View,
+  Animated,
+  Easing,
+  Dimensions,
   TouchableOpacity,
-  Modal,
+  BackHandler,
   ActivityIndicator,
   SectionList,
   Platform,
@@ -73,6 +76,10 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
       n_gpu_layers: 0,
     });
     const [showInitPanel, setShowInitPanel] = useState(false);
+    const screenHeight = Dimensions.get('window').height;
+    const slideAnim = useRef(new Animated.Value(screenHeight)).current;
+    const backdropAnim = useRef(new Animated.Value(0)).current;
+    const [overlayActive, setOverlayActive] = useState(false);
     const modelSelectInFlightRef = useRef(false);
     const handledPreselectedPathRef = useRef<string | null>(null);
 
@@ -563,6 +570,40 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
     useEffect(() => {
       if (modalVisible) {
         refreshAppleFoundationState();
+        setOverlayActive(true);
+        Animated.parallel([
+          Animated.timing(backdropAnim, {
+            toValue: 1,
+            duration: 350,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            damping: 500,
+            stiffness: 1000,
+            mass: 3,
+            overshootClamping: true,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      } else {
+        Animated.parallel([
+          Animated.timing(backdropAnim, {
+            toValue: 0,
+            duration: 250,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: screenHeight,
+            duration: 250,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]).start(({ finished }) => {
+          if (finished) setOverlayActive(false);
+        });
       }
     }, [modalVisible]);
 
@@ -606,6 +647,15 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
         unsubscribe();
       };
     }, []);
+
+    useEffect(() => {
+      if (!modalVisible || Platform.OS !== 'android') return;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleModalClose();
+        return true;
+      });
+      return () => sub.remove();
+    }, [modalVisible]);
 
     const badgeConfig = getConnectionBadgeConfig(selectedModelPath, currentTheme);
 
@@ -740,14 +790,18 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
           </View>
         </TouchableOpacity>
 
-        <Modal
-          visible={modalVisible}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={handleModalClose}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: themeColors.background }]}>
+        <Portal>
+          <View
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            pointerEvents={overlayActive ? 'auto' : 'none'}
+          >
+            <Animated.View
+              style={[styles.modalOverlay, { opacity: backdropAnim }]}
+              pointerEvents="box-none"
+            >
+              <Animated.View
+                style={[styles.modalContent, { backgroundColor: themeColors.background, transform: [{ translateY: slideAnim }] }]}
+              >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: currentTheme === 'dark' ? '#fff' : themeColors.text }]}>
                   Select Model
@@ -807,8 +861,7 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
                         </View>
                       </TouchableOpacity>
 
-                      {showInitPanel && (
-                        <>
+                      <View style={showInitPanel ? undefined : { height: 0, overflow: 'hidden' }}>
                           <View style={styles.initSliderItem}>
                             <View style={styles.initSliderHeader}>
                               <Text style={{ color: currentTheme === 'dark' ? '#fff' : themeColors.text }}>Context Window</Text>
@@ -888,8 +941,7 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
                               thumbTintColor={getThemeAwareColor('#4a0660', currentTheme)}
                             />
                           </View>
-                        </>
-                      )}
+                      </View>
                     </View>
 
                     {isLoadingLocalModels ? (
@@ -932,11 +984,10 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
                   ) : null
                 }
               />
-            </View>
+              </Animated.View>
+            </Animated.View>
           </View>
-        </Modal>
 
-        <Portal>
           <Dialog visible={dialogVisible} onDismiss={hideDialog}>
             <Dialog.Title>{dialogTitle}</Dialog.Title>
             <Dialog.Content>

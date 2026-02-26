@@ -32,7 +32,7 @@ const InferenceEngineSection: React.FC<InferenceEngineProps> = ({
     {
       id: 'mlx' as const,
       name: 'MLX',
-      description: "Apple's MLX (framework) for inference",
+      description: "Machine Learning Framework developed by Apple",
       icon: 'apple',
       enabled: true,
       requiresMLX: true,
