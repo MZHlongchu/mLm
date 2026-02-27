@@ -12,7 +12,7 @@
         "gradleCommand": ":app:assembleDebug"
       },
       "ios": {
-        "image": "macos-sequoia-15.6-xcode-26.2"
+        "image": "macos-sequoia-15.6-xcode-26.0"
       }
     },
     "preview": {
@@ -23,7 +23,7 @@
       },
       "ios": {
         "buildConfiguration": "Release",
-        "image": "macos-sequoia-15.6-xcode-26.2"
+        "image": "macos-sequoia-15.6-xcode-26.0"
       }
     },
     "production": {
@@ -34,7 +34,7 @@
       },
       "ios": {
         "autoIncrement": true,
-        "image": "macos-sequoia-15.6-xcode-26.2"
+        "image": "macos-sequoia-15.6-xcode-26.0"
       }
     }
   },
