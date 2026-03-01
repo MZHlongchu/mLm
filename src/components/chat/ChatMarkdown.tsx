@@ -1,9 +1,7 @@
-import React, { memo, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { memo, useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { View, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import {
   Markdown,
-  MarkdownStream,
-  createMarkdownSession,
   type PartialMarkdownTheme,
   type CodeBlockRendererProps,
 } from 'react-native-nitro-markdown';
@@ -19,7 +17,42 @@ type Props = {
   onCopyCode: (code: string) => void;
 };
 
-const STREAM_UPDATE_MS = 50;
+const STREAM_THROTTLE_MS = 100;
+const BLOCK_LATEX_REGEX = /\\\[([\s\S]*?)\\\]/g;
+const INLINE_LATEX_REGEX = /\\\(([\s\S]*?)\\\)/g;
+
+const normalizeMathDelimiters = (input: string): string => {
+  if (!input) return input;
+  const withBlockMath = input.replace(BLOCK_LATEX_REGEX, (_match, mathContent) => `$$${String(mathContent).trim()}$$`);
+  return withBlockMath.replace(INLINE_LATEX_REGEX, (_match, mathContent) => `$${String(mathContent).trim()}$`);
+};
+
+const stabilizeMathDelimiters = (input: string): string => {
+  if (!input) return input;
+  const singles: number[] = [];
+  const doubles: number[] = [];
+  for (let i = 0; i < input.length; i++) {
+    if (input[i] === '\\') { i++; continue; }
+    if (input[i] !== '$') continue;
+    if (input[i + 1] === '$') { doubles.push(i); i++; } else { singles.push(i); }
+  }
+  const fixes: Array<{ pos: number; val: string; len: number }> = [];
+  if (doubles.length % 2 !== 0) {
+    fixes.push({ pos: doubles[doubles.length - 1], val: '\\$\\$', len: 2 });
+  }
+  if (singles.length % 2 !== 0) {
+    fixes.push({ pos: singles[singles.length - 1], val: '\\$', len: 1 });
+  }
+  if (fixes.length === 0) return input;
+  fixes.sort((a, b) => b.pos - a.pos);
+  let result = input;
+  for (const f of fixes) {
+    result = result.slice(0, f.pos) + f.val + result.slice(f.pos + f.len);
+  }
+  return result;
+};
+
+const MATH_OPTIONS = { math: true };
 
 const StreamingContent = memo(({
   content,
@@ -30,49 +63,46 @@ const StreamingContent = memo(({
   mdTheme: PartialMarkdownTheme;
   renderers: any;
 }) => {
-  const sessionRef = useRef(createMarkdownSession());
-  const prevLenRef = useRef(0);
+  const [display, setDisplay] = useState('');
+  const contentRef = useRef(content);
+  const lastUpdateRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const session = sessionRef.current;
-    const prevLen = prevLenRef.current;
-
-    if (content.length === 0) {
-      session.clear();
-      prevLenRef.current = 0;
-      return;
-    }
-
-    const prevText = session.getAllText();
-
-    if (content.startsWith(prevText) && content.length >= prevLen) {
-      const delta = content.slice(prevLen);
-      if (delta.length > 0) {
-        session.append(delta);
-      }
+    contentRef.current = content;
+    const flush = () => {
+      const text = contentRef.current;
+      if (!text) return;
+      const normalized = normalizeMathDelimiters(text);
+      setDisplay(stabilizeMathDelimiters(normalized));
+      lastUpdateRef.current = Date.now();
+    };
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const elapsed = Date.now() - lastUpdateRef.current;
+    if (elapsed >= STREAM_THROTTLE_MS) {
+      flush();
     } else {
-      session.clear();
-      session.append(content);
+      timerRef.current = setTimeout(flush, STREAM_THROTTLE_MS - elapsed);
     }
-    prevLenRef.current = content.length;
   }, [content]);
 
   useEffect(() => {
     return () => {
-      sessionRef.current.clear();
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
 
+  if (!display) return null;
+
   return (
-    <MarkdownStream
-      session={sessionRef.current}
-      updateIntervalMs={STREAM_UPDATE_MS}
-      updateStrategy="raf"
-      incrementalParsing
+    <Markdown
       theme={mdTheme}
       renderers={renderers}
+      options={MATH_OPTIONS}
       stylingStrategy="minimal"
-    />
+    >
+      {display}
+    </Markdown>
   );
 });
 
@@ -88,6 +118,7 @@ const StaticContent = memo(({
   <Markdown
     theme={mdTheme}
     renderers={renderers}
+    options={MATH_OPTIONS}
     stylingStrategy="minimal"
   >
     {content}
@@ -176,7 +207,7 @@ function ChatMarkdown({ content, isStreaming, textColor, codeHeaderColor, onCopy
 
   return (
     <StaticContent
-      content={trimmed}
+      content={normalizeMathDelimiters(trimmed)}
       mdTheme={mdTheme}
       renderers={renderers}
     />

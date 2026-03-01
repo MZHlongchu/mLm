@@ -58,17 +58,21 @@ type ChatViewProps = {
 
 const hasMarkdownFormatting = (content: string): boolean => {
   const markdownPatterns = [
-    /```/,           
-    /`[^`]+`/,       
-    /\*\*[^*]+\*\*/,  
-    /\*[^*]+\*/,      
-    /^#+\s/m,         
-    /\[[^\]]+\]\([^)]+\)/,  
-    /^\s*[-*+]\s/m,   
-    /^\s*\d+\.\s/m,   
-    /^\s*>\s/m,       
-    /~~[^~]+~~/,      
-    /\|\s*[^|]+\s*\|/  
+    /```/,
+    /`[^`]+`/,
+    /\*\*[^*]+\*\*/,
+    /\*[^*]+\*/,
+    /^#+\s/m,
+    /\[[^\]]+\]\([^)]+\)/,
+    /^\s*[-*+]\s/m,
+    /^\s*\d+\.\s/m,
+    /^\s*>\s/m,
+    /~~[^~]+~~/,
+    /\|\s*[^|]+\s*\|/,
+    /\$\$[\s\S]+?\$\$/,
+    /\$[^$\n]+\$/,
+    /\\\[[\s\S]+?\\\]/,
+    /\\\([\s\S]+?\\\)/,
   ];
 
   return markdownPatterns.some(pattern => pattern.test(content));
