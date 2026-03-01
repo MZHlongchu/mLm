@@ -833,7 +833,7 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
                         onPress={() => setShowInitPanel(v => !v)}
                         activeOpacity={0.7}
                       >
-                        <Text style={[styles.initPanelToggleLabel, { color: currentTheme === 'dark' ? '#fff' : themeColors.text }]}>Local Model Settings</Text>
+                        <Text style={[styles.initPanelToggleLabel, { color: currentTheme === 'dark' ? '#fff' : themeColors.text }]}>Load Model Settings</Text>
                         <View style={styles.initPanelActions}>
                           {showInitPanel && (
                             <TouchableOpacity
