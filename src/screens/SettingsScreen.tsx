@@ -768,6 +768,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         <SupportSection 
           onOpenLink={openLink} 
           onNavigateToLicenses={() => navigation.navigate('Licenses')}
+          onNavigateToContentTerms={() => navigation.navigate('ContentTerms')}
         />  
 
         <SystemInfoSection systemInfo={systemInfo} />

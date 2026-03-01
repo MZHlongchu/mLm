@@ -21,6 +21,7 @@ export type RootStackParamList = {
   Downloads: undefined;
   Profile: undefined;
   Licenses: undefined;
+  ContentTerms: undefined;
   Report: {
     messageContent: string;
     provider: string;
