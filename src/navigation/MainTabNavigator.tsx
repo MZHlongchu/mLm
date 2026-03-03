@@ -150,8 +150,10 @@ export default function MainTabNavigator() {
   return (
     <Tab.Navigator
       tabBar={props => <CustomTabBar {...props} />}
+      detachInactiveScreens={false}
       screenOptions={{
         headerShown: false,
+        freezeOnBlur: false,
       }}
     >
       <Tab.Screen
