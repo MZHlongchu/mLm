@@ -28,9 +28,16 @@ export const useStoredModels = (): UseStoredModelsReturn => {
       setIsLoading(true);
       console.log('fetching_models');
 
-      const models = await modelDownloader.getStoredModels();
-      console.log('models_fetched', models.length);
-      setStoredModels(models);
+      const cachedModels = await modelDownloader.getStoredModels();
+      console.log('models_fetched', cachedModels.length);
+
+      if (forceRefresh || cachedModels.length === 0) {
+        const scannedModels = await modelDownloader.reloadStoredModels();
+        console.log('models_scanned', scannedModels.length);
+        setStoredModels(scannedModels);
+      } else {
+        setStoredModels(cachedModels);
+      }
     } catch (error) {
       console.log('load_models_error', error);
       setStoredModels([]);
@@ -42,10 +49,10 @@ export const useStoredModels = (): UseStoredModelsReturn => {
   }, []);
 
   const refreshStoredModels = useCallback(async () => {
-    console.log('refresh_storage_only');
+    console.log('refresh_storage_rescan');
     setIsRefreshing(true);
     try {
-      const models = await modelDownloader.getStoredModels();
+      const models = await modelDownloader.reloadStoredModels();
       console.log('refresh_complete', models.length);
       setStoredModels(models);
     } finally {

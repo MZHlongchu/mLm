@@ -1,4 +1,4 @@
-import { LLM, ModelManager } from 'react-native-nitro-mlx';
+import { LLM } from 'react-native-nitro-mlx';
 import { EngineCaps, GenOpts, InferenceManager, Msg } from './inference-manager';
 import * as FileSystem from 'expo-file-system';
 
@@ -22,38 +22,91 @@ type State = {
 class MlxManager implements InferenceManager {
   private state: State = { loaded: false, modelId: '' };
 
+  private getLastSegment(value: string): string {
+    const cleaned = value.replace(/^file:\/\//, '').replace(/\/+$/, '');
+    const parts = cleaned.split('/').filter(Boolean);
+    return parts[parts.length - 1] || value;
+  }
+
+  private resolveModelId(modelIdOrPath: string): string {
+    const raw = modelIdOrPath.trim();
+    if (!raw) {
+      return raw;
+    }
+
+    const cleaned = raw.replace(/^file:\/\//, '');
+    if (cleaned.includes('/models/mlx/') || cleaned.includes('/huggingface/models/')) {
+      return this.getLastSegment(cleaned);
+    }
+
+    return raw;
+  }
+
+  private getMlxDir(modelId: string): string {
+    const docsDir = FileSystem.documentDirectory || '';
+    return `${docsDir}models/mlx/${modelId}`;
+  }
+
+  private getNitroDir(modelId: string): string {
+    const docsDir = FileSystem.documentDirectory || '';
+    return `${docsDir}huggingface/models/${modelId}`;
+  }
+
+  private async pathExists(path: string): Promise<boolean> {
+    try {
+      const info = await FileSystem.getInfoAsync(path);
+      return !!info.exists;
+    } catch {
+      return false;
+    }
+  }
+
+  private async moveDirContents(sourceDir: string, targetDir: string): Promise<void> {
+    await FileSystem.makeDirectoryAsync(targetDir, { intermediates: true });
+    const entries = await FileSystem.readDirectoryAsync(sourceDir);
+
+    for (const entry of entries) {
+      const fromPath = `${sourceDir}/${entry}`;
+      const toPath = `${targetDir}/${entry}`;
+      const info = await FileSystem.getInfoAsync(fromPath);
+      if (!info.exists) {
+        continue;
+      }
+      if ((info as any).isDirectory) {
+        await this.moveDirContents(fromPath, toPath);
+        await FileSystem.deleteAsync(fromPath, { idempotent: true });
+      } else {
+        const targetInfo = await FileSystem.getInfoAsync(toPath);
+        if (targetInfo.exists) {
+          await FileSystem.deleteAsync(toPath, { idempotent: true });
+        }
+        await FileSystem.moveAsync({
+          from: fromPath,
+          to: toPath,
+        });
+      }
+    }
+  }
+
   private async migrateFilesIfNeeded(modelId: string): Promise<boolean> {
     try {
-      const modelPrefix = modelId.replace(/\//g, '_');
-      const modelsDir = `${FileSystem.documentDirectory}models/`;
-      const targetDir = `${FileSystem.documentDirectory}huggingface/models/${modelPrefix}/`;
-      
-      const dirInfo = await FileSystem.getInfoAsync(modelsDir);
-      if (!dirInfo.exists) return false;
-      
-      const files = await FileSystem.readDirectoryAsync(modelsDir);
-      const modelFiles = files.filter(f => f.startsWith(modelPrefix + '_'));
-      
-      if (modelFiles.length === 0) return false;
-      
-      console.log('mlx_migrating_files', { modelId, fileCount: modelFiles.length });
-      
-      await FileSystem.makeDirectoryAsync(targetDir, { intermediates: true });
-      
-      for (const filename of modelFiles) {
-        const sourceFile = `${modelsDir}${filename}`;
-        const targetFilename = filename.replace(modelPrefix + '_', '');
-        const targetFile = `${targetDir}${targetFilename}`;
-        
-        await FileSystem.moveAsync({
-          from: sourceFile,
-          to: targetFile
-        });
-        
-        console.log('mlx_file_migrated', { from: filename, to: targetFilename });
+      const sourceDir = this.getMlxDir(modelId);
+      const targetDir = this.getNitroDir(modelId);
+
+      const sourceInfo = await FileSystem.getInfoAsync(sourceDir);
+      if (!sourceInfo.exists || !(sourceInfo as any).isDirectory) {
+        return false;
       }
-      
-      console.log('mlx_migration_complete', modelId);
+
+      const targetInfo = await FileSystem.getInfoAsync(targetDir);
+      if (!targetInfo.exists) {
+        await FileSystem.moveAsync({ from: sourceDir, to: targetDir });
+      } else {
+        await this.moveDirContents(sourceDir, targetDir);
+        await FileSystem.deleteAsync(sourceDir, { idempotent: true });
+      }
+
+      console.log('mlx_migration_complete', { modelId, sourceDir, targetDir });
       return true;
     } catch (error) {
       console.log('mlx_migration_error', error);
@@ -61,50 +114,70 @@ class MlxManager implements InferenceManager {
     }
   }
 
+  private getCandidateModelIds(modelId: string): string[] {
+    const set = new Set<string>();
+    set.add(modelId);
+    if (modelId.includes('_')) {
+      set.add(modelId.replace(/_/g, '/'));
+    }
+    if (modelId.includes('/')) {
+      set.add(modelId.replace(/\//g, '_'));
+    }
+    return Array.from(set).filter(Boolean);
+  }
+
   async init(modelIdOrPath: string) {
     console.log('mlx_init_start', modelIdOrPath);
-    
-    let modelId = modelIdOrPath;
-    
-    if (modelIdOrPath.includes('/models/') || 
-        modelIdOrPath.includes('/mlx/') || 
-        modelIdOrPath.includes('file://') ||
-        modelIdOrPath.startsWith('lmstudio-community_') ||
-        modelIdOrPath.includes('_')) {
-      if (modelIdOrPath.includes('file://') || modelIdOrPath.includes('/')) {
-        const parts = modelIdOrPath.split('/');
-        const lastPart = parts[parts.length - 1] || parts[parts.length - 2];
-        modelId = lastPart;
-      }
-      
-      modelId = modelId.replace(/_/g, '/');
-      console.log('mlx_extracted_model_id', { path: modelIdOrPath, modelId });
-    }
+
+    const resolvedModelId = this.resolveModelId(modelIdOrPath);
+    const candidateIds = this.getCandidateModelIds(resolvedModelId);
+    console.log('mlx_candidate_ids', candidateIds);
 
     try {
-      let isDownloaded = await ModelManager.isDownloaded(modelId);
-      
-      if (!isDownloaded) {
-        console.log('mlx_attempting_migration', modelId);
-        const migrated = await this.migrateFilesIfNeeded(modelId);
-        if (migrated) {
-          isDownloaded = await ModelManager.isDownloaded(modelId);
+      for (const candidateId of candidateIds) {
+        console.log('mlx_attempting_migration', candidateId);
+        await this.migrateFilesIfNeeded(candidateId);
+      }
+
+      let hasLocalPackage = false;
+      for (const id of candidateIds) {
+        const inNitroDir = await this.pathExists(this.getNitroDir(id));
+        const inMlxDir = await this.pathExists(this.getMlxDir(id));
+        if (inNitroDir || inMlxDir) {
+          hasLocalPackage = true;
+          break;
         }
       }
-      
-      if (!isDownloaded) {
+
+      if (!hasLocalPackage && (modelIdOrPath.includes('/models/mlx/') || modelIdOrPath.includes('/huggingface/models/'))) {
         throw new Error('mlx_model_not_downloaded');
       }
 
-      await LLM.load(modelId, {
-        onProgress: (progress) => {
-          console.log('mlx_loading_progress', progress);
-        },
-        manageHistory: true,
-      });
-      
-      this.state = { loaded: true, modelId };
-      console.log('mlx_init_complete', modelId);
+      let loadedId = '';
+      let lastError: unknown;
+
+      for (const candidateId of candidateIds) {
+        try {
+          await LLM.load(candidateId, {
+            onProgress: (progress) => {
+              console.log('mlx_loading_progress', progress);
+            },
+            manageHistory: true,
+          });
+          loadedId = candidateId;
+          break;
+        } catch (error) {
+          lastError = error;
+          console.log('mlx_load_attempt_failed', { candidateId, error });
+        }
+      }
+
+      if (!loadedId) {
+        throw (lastError instanceof Error ? lastError : new Error('mlx_model_not_downloaded'));
+      }
+
+      this.state = { loaded: true, modelId: loadedId };
+      console.log('mlx_init_complete', loadedId);
     } catch (error) {
       console.log('mlx_init_error', error);
       throw error;
