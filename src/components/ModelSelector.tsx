@@ -91,6 +91,10 @@ const getFile = (path: string) => {
 };
 
 const hasCompleteMlxPackage = (files: StoredModel[]) => {
+  if (files.some(file => file.isDirectory && file.modelFormat === 'mlx')) {
+    return true;
+  }
+
   const names = new Set(files.map(file => getFile(file.path).toLowerCase()));
   const hasRequiredConfig =
     names.has('config.json') &&
@@ -203,7 +207,7 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
         });
 
         const mlxByDir = mlxFiles.reduce<Record<string, StoredModel[]>>((acc, model) => {
-          const dir = getDir(model.path);
+          const dir = model.isDirectory ? model.path : getDir(model.path);
           if (!dir) {
             return acc;
           }
@@ -225,7 +229,8 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
           if (!lowerPath.includes('/models/mlx/')) {
             return true;
           }
-          return !incompleteDirs.has(getDir(model.path));
+          const dirKey = model.isDirectory ? model.path : getDir(model.path);
+          return !incompleteDirs.has(dirKey);
         });
       })();
 

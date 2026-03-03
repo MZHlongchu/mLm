@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
 import { useTheme } from '../../context/ThemeContext';
 import { theme } from '../../constants/theme';
 import { getThemeAwareColor, getDocumentIconColor } from '../../utils/ColorUtils';
@@ -32,6 +33,10 @@ const getFile = (path: string) => {
 };
 
 const hasCompleteMlxPackage = (files: StoredModel[]) => {
+  if (files.some(file => file.isDirectory && file.modelFormat === 'mlx')) {
+    return true;
+  }
+
   const names = new Set(files.map(file => getFile(file.path).toLowerCase()));
   const hasRequiredConfig =
     names.has('config.json') &&
@@ -68,6 +73,57 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
   const { theme: currentTheme } = useTheme();
   const themeColors = theme[currentTheme as 'light' | 'dark'];
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [mlxGroupFiles, setMlxGroupFiles] = useState<Record<string, Array<{ path: string; name: string; size: number }>>>({});
+  const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
+
+  const loadGroupFiles = async (groupPath: string) => {
+    if (mlxGroupFiles[groupPath] || loadingGroups.has(groupPath)) {
+      return;
+    }
+
+    setLoadingGroups(prev => new Set(prev).add(groupPath));
+    try {
+      const collectFiles = async (rootPath: string, currentPath: string): Promise<Array<{ path: string; name: string; size: number }>> => {
+        const entries = await FileSystem.readDirectoryAsync(currentPath);
+        const out: Array<{ path: string; name: string; size: number }> = [];
+
+        for (const entry of entries) {
+          const fullPath = `${currentPath}/${entry}`;
+          const info = await FileSystem.getInfoAsync(fullPath, { size: true });
+          if (!info.exists) {
+            continue;
+          }
+          if ((info as any).isDirectory) {
+            const nested = await collectFiles(rootPath, fullPath);
+            out.push(...nested);
+          } else {
+            const relativePath = fullPath.startsWith(`${rootPath}/`)
+              ? fullPath.slice(rootPath.length + 1)
+              : entry;
+            out.push({
+              path: fullPath,
+              name: relativePath,
+              size: (info as any).size || 0,
+            });
+          }
+        }
+
+        return out;
+      };
+
+      const files = await collectFiles(groupPath, groupPath);
+      files.sort((a, b) => a.name.localeCompare(b.name));
+      setMlxGroupFiles(prev => ({ ...prev, [groupPath]: files }));
+    } catch {
+      setMlxGroupFiles(prev => ({ ...prev, [groupPath]: [] }));
+    } finally {
+      setLoadingGroups(prev => {
+        const next = new Set(prev);
+        next.delete(groupPath);
+        return next;
+      });
+    }
+  };
 
   const visibleModels = React.useMemo(() => {
     const withoutTemp = storedModels.filter(model => {
@@ -82,7 +138,7 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
     });
 
     const mlxByDir = mlxFiles.reduce<Record<string, StoredModel[]>>((acc, model) => {
-      const dir = getDir(model.path);
+      const dir = model.isDirectory ? model.path : getDir(model.path);
       if (!dir) {
         return acc;
       }
@@ -104,7 +160,8 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
       if (!lowerPath.includes('/models/mlx/')) {
         return true;
       }
-      return !incompleteDirs.has(getDir(model.path));
+      const dirKey = model.isDirectory ? model.path : getDir(model.path);
+      return !incompleteDirs.has(dirKey);
     });
   }, [storedModels]);
 
@@ -238,13 +295,24 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
         ? `${item.name}.gguf`
         : item.name;
     
-    if (item.isMLXGroup) {
-      const isExpanded = expandedGroups.has(item.groupKey);
+    const isDirectoryMlx = item.modelFormat === 'mlx' && item.isDirectory;
+    const isExpandableMlx = item.isMLXGroup || isDirectoryMlx;
+
+    if (isExpandableMlx) {
+      const groupKey = item.groupKey || item.path;
+      const isExpanded = expandedGroups.has(groupKey);
+      const files = item.mlxFiles || mlxGroupFiles[groupKey] || [];
+      const isLoadingGroup = loadingGroups.has(groupKey);
       return (
         <View style={[styles.groupContainer, { backgroundColor: themeColors.borderColor }]}>
           <TouchableOpacity
             style={styles.groupHeader}
-            onPress={() => toggleGroup(item.groupKey)}
+            onPress={() => {
+              if (!isExpanded) {
+                void loadGroupFiles(groupKey);
+              }
+              toggleGroup(groupKey);
+            }}
             activeOpacity={0.7}
           >
             <View style={styles.modelIconContainer}>
@@ -285,7 +353,10 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
                 style={styles.actionButton}
                 onPress={(e) => {
                   e.stopPropagation();
-                  toggleGroup(item.groupKey);
+                  if (!isExpanded) {
+                    void loadGroupFiles(groupKey);
+                  }
+                  toggleGroup(groupKey);
                 }}
               >
                 <MaterialCommunityIcons
@@ -298,24 +369,34 @@ export const StoredModelsTab: React.FC<StoredModelsTabProps> = ({
           </TouchableOpacity>
           {isExpanded && (
             <View style={[styles.expandedContent, { borderTopColor: themeColors.background }]}>
-              {item.mlxFiles.map((file: StoredModel, index: number) => (
-                <View key={file.path} style={styles.fileRow}>
-                  <View style={styles.fileRowContent}>
-                    <MaterialCommunityIcons
-                      name="file-document-outline"
-                      size={16}
-                      color={themeColors.secondaryText}
-                      style={styles.fileIcon}
-                    />
-                    <Text style={[styles.fileName, { color: themeColors.text }]} numberOfLines={1}>
-                      {file.name}
+              {isLoadingGroup ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator size="small" color={getThemeAwareColor('#4a0660', currentTheme)} />
+                </View>
+              ) : files.length === 0 ? (
+                <View style={styles.loadingRow}>
+                  <Text style={[styles.fileSize, { color: themeColors.secondaryText }]}>No files found</Text>
+                </View>
+              ) : (
+                files.map((file: any) => (
+                  <View key={file.path} style={styles.fileRow}>
+                    <View style={styles.fileRowContent}>
+                      <MaterialCommunityIcons
+                        name="file-document-outline"
+                        size={16}
+                        color={themeColors.secondaryText}
+                        style={styles.fileIcon}
+                      />
+                      <Text style={[styles.fileName, { color: themeColors.text }]} numberOfLines={1}>
+                        {file.name}
+                      </Text>
+                    </View>
+                    <Text style={[styles.fileSize, { color: themeColors.secondaryText }]}> 
+                      {formatBytes(file.size)}
                     </Text>
                   </View>
-                  <Text style={[styles.fileSize, { color: themeColors.secondaryText }]}>
-                    {formatBytes(file.size)}
-                  </Text>
-                </View>
-              ))}
+                ))
+              )}
             </View>
           )}
         </View>
@@ -538,5 +619,10 @@ const styles = StyleSheet.create({
   fileSize: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  loadingRow: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

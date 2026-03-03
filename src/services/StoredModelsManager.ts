@@ -97,6 +97,30 @@ export class StoredModelsManager extends EventEmitter {
     return [];
   }
 
+  private async getMlxIds(): Promise<string[]> {
+    const ids = new Set<string>();
+
+    try {
+      const regIds = await ModelManager.getDownloadedModels();
+      for (const id of regIds) {
+        ids.add(id);
+      }
+    } catch (error) {
+      console.log('mlx_registry_list_error', error);
+    }
+
+    try {
+      const fsModels = await mlxStorageManager.listMLXModels();
+      for (const model of fsModels) {
+        ids.add(model.modelId);
+      }
+    } catch (error) {
+      console.log('mlx_fs_list_error', error);
+    }
+
+    return Array.from(ids);
+  }
+
   private async scanAndPersist(): Promise<StoredModel[]> {
     return this.lock(async () => {
       console.log('scan_filesystem_start');
@@ -168,12 +192,12 @@ export class StoredModelsManager extends EventEmitter {
 
         console.log('scanning_mlx_models');
         try {
-          const mlxModelIds = await ModelManager.getDownloadedModels();
+          const mlxModelIds = await this.getMlxIds();
           console.log('mlx_models_found', mlxModelIds.length);
 
           for (const modelId of mlxModelIds) {
             try {
-              const modelPath = await ModelManager.getModelPath(modelId);
+              const modelPath = mlxStorageManager.getMLXModelDirectory(modelId);
               const dirInfo = await FileSystem.getInfoAsync(modelPath);
               
               let size = 0;
@@ -249,7 +273,7 @@ export class StoredModelsManager extends EventEmitter {
       
       if (!needsRescan && mlxInStorage === 0) {
         try {
-          const mlxModelIds = await ModelManager.getDownloadedModels();
+          const mlxModelIds = await this.getMlxIds();
           if (mlxModelIds.length > 0) {
             needsRescan = true;
           }
@@ -264,7 +288,7 @@ export class StoredModelsManager extends EventEmitter {
         
         if (!hasModels) {
           try {
-            const mlxModelIds = await ModelManager.getDownloadedModels();
+            const mlxModelIds = await this.getMlxIds();
             hasModels = mlxModelIds.length > 0;
           } catch (error) {
             console.log('mlx_check_error', error);
