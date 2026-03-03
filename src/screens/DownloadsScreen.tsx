@@ -45,6 +45,8 @@ export default function DownloadsScreen() {
   const [dialogTitle, setDialogTitle] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
   const [dialogActions, setDialogActions] = useState<React.ReactNode[]>([]);
+  const [mlxPackageFiles, setMlxPackageFiles] = useState<Record<string, string[]>>({});
+  const [expandedPackages, setExpandedPackages] = useState<Set<string>>(new Set());
 
   const hideDialog = () => setDialogVisible(false);
 
@@ -75,6 +77,50 @@ export default function DownloadsScreen() {
     modelDownloader.ensureDownloadsAreRunning().catch(() => {
     });
   }, []);
+
+  useEffect(() => {
+    const loadMlxPackageFiles = async () => {
+      try {
+        const activeList = await modelDownloader.getActiveDownloadsList();
+        const grouped: Record<string, string[]> = {};
+
+        for (const item of activeList) {
+          const match = item.modelName.match(/^temp_mlx_(.+)_\d+_(.+)$/);
+          if (!match) {
+            continue;
+          }
+
+          const packageName = match[1];
+          const fileName = match[2].split('/').pop() || match[2];
+
+          if (!grouped[packageName]) {
+            grouped[packageName] = [];
+          }
+
+          if (!grouped[packageName].includes(fileName)) {
+            grouped[packageName].push(fileName);
+          }
+        }
+
+        setMlxPackageFiles(grouped);
+      } catch {
+      }
+    };
+
+    loadMlxPackageFiles();
+  }, [downloadProgress]);
+
+  const togglePackage = (packageName: string) => {
+    setExpandedPackages(prev => {
+      const next = new Set(prev);
+      if (next.has(packageName)) {
+        next.delete(packageName);
+      } else {
+        next.add(packageName);
+      }
+      return next;
+    });
+  };
 
 
 
@@ -177,15 +223,32 @@ export default function DownloadsScreen() {
   ) : [];
 
   const renderItem = ({ item }: { item: DownloadItem }) => {
-    const isMLXDownload = item.name.includes('/') || item.name.includes('mlx-community');
+    const packageFiles = mlxPackageFiles[item.name] || [];
+    const isMLXDownload = packageFiles.length > 0;
+    const isExpanded = expandedPackages.has(item.name);
     const progressText = `${Math.floor(item.progress || 0)}% • ${formatBytes(item.bytesDownloaded || 0)} / ${formatBytes(item.totalBytes || 0)}`;
     
     return (
       <View style={[styles.downloadItem, { backgroundColor: themeColors.borderColor }]}>
         <View style={styles.downloadHeader}>
-          <Text style={[styles.downloadName, { color: themeColors.text }]} numberOfLines={1}>
-            {item.name}
-          </Text>
+          <View style={styles.downloadTitleContainer}>
+            <Text style={[styles.downloadName, { color: themeColors.text }]} numberOfLines={1}>
+              {item.name}
+            </Text>
+            {isMLXDownload && (
+              <TouchableOpacity
+                style={styles.expandButton}
+                onPress={() => togglePackage(item.name)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialCommunityIcons
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={themeColors.secondaryText}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={styles.downloadActions}>
             <TouchableOpacity
               style={styles.cancelButton}
@@ -199,6 +262,16 @@ export default function DownloadsScreen() {
         <Text style={[styles.downloadProgress, { color: themeColors.secondaryText }]}>
           {progressText}
         </Text>
+
+        {isMLXDownload && isExpanded && (
+          <View style={styles.packageFilesContainer}>
+            {packageFiles.map(fileName => (
+              <Text key={`${item.name}-${fileName}`} style={[styles.packageFileText, { color: themeColors.secondaryText }]} numberOfLines={1}>
+                • {fileName}
+              </Text>
+            ))}
+          </View>
+        )}
         
         <View style={[styles.progressBar, { backgroundColor: themeColors.background }]}>
           <View 
@@ -270,12 +343,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  downloadTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
   downloadName: {
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 4,
     flex: 1,
-    marginRight: 12,
+  },
+  expandButton: {
+    padding: 2,
+    marginLeft: 6,
   },
   downloadActions: {
     flexDirection: 'row',
@@ -294,6 +376,14 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 2,
+  },
+  packageFilesContainer: {
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  packageFileText: {
+    fontSize: 12,
+    marginBottom: 2,
   },
   emptyContainer: {
     flex: 1,
