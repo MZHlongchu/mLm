@@ -146,7 +146,7 @@ export default function ModelScreen({ navigation }: ModelScreenProps) {
               storedModels={logic.storedModels}
               isLoading={logic.isLoadingStoredModels}
               isRefreshing={logic.isRefreshingStoredModels}
-              onRefresh={logic.refreshStoredModels}
+              onRefresh={logic.rescanStoredModels}
               onImportModel={handleLinkModel}
               onDelete={handleDelete}
               onExport={handleExport}

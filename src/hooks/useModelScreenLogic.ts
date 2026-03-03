@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Animated, AppState, AppStateStatus, Platform } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
@@ -41,7 +40,7 @@ const registerBackgroundTask = async () => {
 
 export const useModelScreenLogic = (navigation: any) => {
   const { enableRemoteModels, isLoggedIn, checkLoginStatus } = useRemoteModel();
-  const { storedModels, isLoading: isLoadingStoredModels, isRefreshing: isRefreshingStoredModels, refreshStoredModels } = useStoredModels();
+  const { storedModels, isLoading: isLoadingStoredModels, isRefreshing: isRefreshingStoredModels, refreshStoredModels, rescanStoredModels } = useStoredModels();
   const { downloadProgress, setDownloadProgress } = useDownloads();
   
   const [activeTab, setActiveTab] = useState<'stored' | 'downloadable' | 'remote'>('stored');
@@ -53,12 +52,6 @@ export const useModelScreenLogic = (navigation: any) => {
   const [username, setUsername] = useState<string | null>(null);
   
   const buttonScale = useRef(new Animated.Value(1)).current;
-
-  useFocusEffect(
-    useCallback(() => {
-      refreshStoredModels();
-    }, [refreshStoredModels])
-  );
 
   useEffect(() => {
     checkLoginStatusAndUpdateUsername();
@@ -366,6 +359,7 @@ export const useModelScreenLogic = (navigation: any) => {
     isLoadingStoredModels,
     isRefreshingStoredModels,
     refreshStoredModels,
+    rescanStoredModels,
     downloadProgress,
     setDownloadProgress,
     isDownloadsVisible,
