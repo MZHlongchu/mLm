@@ -5,6 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import { useTheme } from '../context/ThemeContext';
 import { theme } from '../constants/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -82,7 +83,7 @@ export default function DownloadsScreen() {
     const loadMlxPackageFiles = async () => {
       try {
         const activeList = await modelDownloader.getActiveDownloadsList();
-        const grouped: Record<string, string[]> = {};
+        const grouped: Record<string, Set<string>> = {};
 
         for (const item of activeList) {
           const match = item.modelName.match(/^temp_mlx_(.+)_\d+_(.+)$/);
@@ -94,15 +95,39 @@ export default function DownloadsScreen() {
           const fileName = match[2].split('/').pop() || match[2];
 
           if (!grouped[packageName]) {
-            grouped[packageName] = [];
+            grouped[packageName] = new Set<string>();
           }
 
-          if (!grouped[packageName].includes(fileName)) {
-            grouped[packageName].push(fileName);
+          grouped[packageName].add(fileName);
+        }
+
+        const activePackageNames = Object.entries(downloadProgress)
+          .filter(([, data]) => data.status !== 'completed' && data.status !== 'failed' && data.status !== 'cancelled')
+          .map(([name]) => name);
+
+        for (const packageName of activePackageNames) {
+          const packageDir = `${FileSystem.documentDirectory}models/mlx/${packageName}`;
+          try {
+            const dirInfo = await FileSystem.getInfoAsync(packageDir);
+            if (dirInfo.exists && dirInfo.isDirectory) {
+              const files = await FileSystem.readDirectoryAsync(packageDir);
+              if (!grouped[packageName]) {
+                grouped[packageName] = new Set<string>();
+              }
+              for (const file of files) {
+                grouped[packageName].add(file);
+              }
+            }
+          } catch {
           }
         }
 
-        setMlxPackageFiles(grouped);
+        const normalized: Record<string, string[]> = {};
+        Object.entries(grouped).forEach(([packageName, files]) => {
+          normalized[packageName] = Array.from(files).sort((a, b) => a.localeCompare(b));
+        });
+
+        setMlxPackageFiles(normalized);
       } catch {
       }
     };
