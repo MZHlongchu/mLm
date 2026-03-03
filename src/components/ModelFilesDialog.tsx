@@ -63,6 +63,25 @@ export default function ModelFilesDialog({
   const handleDownloadSelected = async () => {
     if (selectedFiles.size === 0 || !modelDetails) return;
 
+    if (isMLXModel && onDownloadMLXModel) {
+      setDownloadingMLXPackage(true);
+      try {
+        const filesToDownload = modelDetails.files
+          .filter(file => selectedFiles.has(file.filename))
+          .map(file => ({
+            filename: file.filename,
+            downloadUrl: file.downloadUrl,
+            size: file.size || 0,
+          }));
+
+        await onDownloadMLXModel(modelDetails.id, filesToDownload);
+      } catch (error) {
+      } finally {
+        setDownloadingMLXPackage(false);
+      }
+      return;
+    }
+
     setDownloadingSelected(true);
     try {
       const filesToDownload = modelDetails.files.filter(f => selectedFiles.has(f.filename));
@@ -253,19 +272,21 @@ export default function ModelFilesDialog({
               style={[
                 styles.downloadSelectedButton,
                 {
-                  backgroundColor: downloadingSelected ? themeColors.primary + '60' : themeColors.primary,
+                  backgroundColor: (isMLXModel ? downloadingMLXPackage : downloadingSelected)
+                    ? themeColors.primary + '60'
+                    : themeColors.primary,
                 },
               ]}
               onPress={handleDownloadSelected}
-              disabled={downloadingSelected}
+              disabled={isMLXModel ? downloadingMLXPackage : downloadingSelected}
             >
-              {downloadingSelected ? (
+                {(isMLXModel ? downloadingMLXPackage : downloadingSelected) ? (
                 <ActivityIndicator size="small" color="#FFFFFF" style={styles.loadingIcon} />
               ) : (
                 <MaterialCommunityIcons name="download-multiple" size={20} color="#FFFFFF" style={styles.buttonIcon} />
               )}
               <Text style={styles.downloadSelectedButtonText}>
-                {downloadingSelected 
+                  {(isMLXModel ? downloadingMLXPackage : downloadingSelected)
                   ? `Downloading ${selectedFiles.size} file${selectedFiles.size > 1 ? 's' : ''}...` 
                   : isMLXModel 
                     ? `Download for MLX (${selectedFiles.size})` 

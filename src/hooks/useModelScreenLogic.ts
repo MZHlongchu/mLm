@@ -196,22 +196,6 @@ export const useModelScreenLogic = (navigation: any) => {
         delete newProgress[modelName];
         return newProgress;
       });
-      
-      try {
-        const savedStates = await AsyncStorage.getItem('active_downloads');
-        if (savedStates) {
-          const parsedStates = JSON.parse(savedStates);
-          if (parsedStates[modelName]) {
-            delete parsedStates[modelName];
-            if (Object.keys(parsedStates).length > 0) {
-              await AsyncStorage.setItem('active_downloads', JSON.stringify(parsedStates));
-            } else {
-              await AsyncStorage.removeItem('active_downloads');
-            }
-          }
-        }
-      } catch (storageError) {
-      }
 
       await refreshStoredModels();
     } catch (error) {

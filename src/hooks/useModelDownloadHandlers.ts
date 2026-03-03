@@ -17,6 +17,7 @@ export const useModelDownloadHandlers = (
   setSelectedFiles: (files: Set<string>) => void,
   proceedWithDownload: (filename: string, downloadUrl: string, modelId?: string) => Promise<void>,
   proceedWithMultipleDownloads: (files: any[], modelId: string) => Promise<void>,
+  requestMLXDownload: (modelId: string, files: Array<{ filename: string; downloadUrl: string; size: number }>) => void,
   proceedWithCuratedDownload: (model: DownloadableModel) => Promise<void>,
   showDialog: (title: string, message: string) => void,
   convertHfModelToDownloadable: (hfModel: HFModel) => DownloadableModel,
@@ -209,6 +210,15 @@ export const useModelDownloadHandlers = (
     }
   };
 
+  const handleDownloadMLXModel = async (
+    modelId: string,
+    files: Array<{ filename: string; downloadUrl: string; size: number }>
+  ) => {
+    setSelectedModel(null);
+    setSelectedFiles(new Set());
+    requestMLXDownload(modelId, files);
+  };
+
   const handleCuratedModelDownload = async (model: DownloadableModel) => {
     try {
       const hideWarning = await AsyncStorage.getItem('hideModelWarning');
@@ -347,6 +357,7 @@ export const useModelDownloadHandlers = (
   return {
     handleVisionDownload,
     handleDownloadFile,
+    handleDownloadMLXModel,
     handleDownloadSelected,
     handleCuratedModelDownload,
     handleWarningAccept,

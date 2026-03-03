@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { huggingFaceService, HFModel, HFModelDetails } from '../services/HuggingFaceService';
 import { modelDownloader } from '../services/ModelDownloader';
@@ -43,13 +44,11 @@ export const useUnifiedModelList = (
   } | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [forceRender, setForceRender] = useState(0);
-  const [showMLXConfirmDialog, setShowMLXConfirmDialog] = useState(false);
+  const [mlxDirDialogVisible, setMlxDirDialogVisible] = useState(false);
+  const [mlxDirName, setMlxDirName] = useState('');
   const [pendingMLXDownload, setPendingMLXDownload] = useState<{
-    modelName: string,
-    fileCount: number,
-    totalSize: number,
-    details: HFModelDetails,
-    filesToDownload: any[]
+    modelId: string;
+    files: Array<{ filename: string; downloadUrl: string; size: number }>;
   } | null>(null);
 
   const showDialog = (title: string, message: string) => {
@@ -183,6 +182,11 @@ export const useUnifiedModelList = (
     }
 
     if (hfModel.modelFormat === ModelFormat.MLX) {
+      if (Platform.OS !== 'ios') {
+        showDialog('Not Supported', 'MLX downloads are only available on iOS.');
+        return;
+      }
+
       const modelId = hfModel.id;
       
       const isAlreadyDownloaded = await ModelManager.isDownloaded(modelId);
@@ -201,13 +205,12 @@ export const useUnifiedModelList = (
         }
 
         const filesToDownload = mlxFiles.map(file => ({
-          filename: `${modelId.replace('/', '_')}_${file.rfilename}`,
-          downloadUrl: `https://huggingface.co/${modelId}/resolve/main/${file.rfilename}`,
-          size: file.size,
-          rfilename: file.rfilename
+          filename: file.rfilename,
+          downloadUrl: file.url || `https://huggingface.co/${modelId}/resolve/main/${file.rfilename}`,
+          size: file.size || 0,
         }));
 
-        await proceedWithMultipleDownloads(filesToDownload, modelId);
+        requestMLXDownload(modelId, filesToDownload);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         showDialog('Download Error', `Failed to download MLX model: ${errorMessage}`);
@@ -218,31 +221,48 @@ export const useUnifiedModelList = (
     await handleModelPress(hfModel);
   };
 
-  const handleMLXConfirmAccept = async () => {
-    setShowMLXConfirmDialog(false);
-    
-    if (!pendingMLXDownload) return;
-
-    const hideWarning = await AsyncStorage.getItem('hideModelWarning');
-    
-    if (hideWarning === 'true') {
-      await proceedWithMultipleDownloads(pendingMLXDownload.filesToDownload, pendingMLXDownload.modelName);
-      setPendingMLXDownload(null);
-    } else {
-      setPendingDownload({ 
-        filename: `${pendingMLXDownload.fileCount} MLX files`, 
-        downloadUrl: '', 
-        modelId: pendingMLXDownload.modelName,
-        filesToDownload: pendingMLXDownload.filesToDownload
-      });
-      setPendingMLXDownload(null);
-      setShowWarningDialog(true);
-    }
+  const requestMLXDownload = (
+    modelId: string,
+    files: Array<{ filename: string; downloadUrl: string; size: number }>
+  ) => {
+    const defaultDir = modelId.split('/').pop() || modelId;
+    setMlxDirName(defaultDir);
+    setPendingMLXDownload({ modelId, files });
+    setMlxDirDialogVisible(true);
   };
 
-  const handleMLXConfirmCancel = () => {
-    setShowMLXConfirmDialog(false);
+  const hideMLXDirDialog = () => {
+    setMlxDirDialogVisible(false);
     setPendingMLXDownload(null);
+    setMlxDirName('');
+  };
+
+  const confirmMLXDirDownload = async () => {
+    if (!pendingMLXDownload) {
+      return;
+    }
+
+    const dirName = mlxDirName.trim();
+    if (!dirName) {
+      showDialog('Invalid Directory', 'Please enter a folder name for MLX model files.');
+      return;
+    }
+
+    const { modelId, files } = pendingMLXDownload;
+    hideMLXDirDialog();
+    navigation.navigate('Downloads' as never);
+
+    try {
+      await modelDownloader.downloadMLXModel(
+        modelId,
+        files,
+        huggingFaceService.getAccessToken(),
+        dirName
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showDialog('Download Error', `Failed to start MLX model download: ${errorMessage}`);
+    }
   };
 
   const proceedWithDownload = async (filename: string, downloadUrl: string, modelId?: string) => {
@@ -295,12 +315,6 @@ export const useUnifiedModelList = (
 
   const proceedWithMultipleDownloads = async (files: any[], modelId: string) => {
     navigation.navigate('Downloads' as never);
-
-    await AsyncStorage.setItem(`mlx_pending_${modelId}`, JSON.stringify({
-      modelId,
-      files: files.map(f => ({ filename: f.filename, rfilename: f.rfilename })),
-      timestamp: Date.now()
-    }));
 
     const downloadPromises = files.map(async (file) => {
       const fullFilename = file.filename;
@@ -428,7 +442,8 @@ export const useUnifiedModelList = (
     pendingVisionDownload,
     selectedFiles,
     forceRender,
-    showMLXConfirmDialog,
+    mlxDirDialogVisible,
+    mlxDirName,
     pendingMLXDownload,
     showDialog,
     hideDialog,
@@ -440,8 +455,9 @@ export const useUnifiedModelList = (
     isModelDownloaded,
     handleModelPress,
     handleHfModelDownload,
-    handleMLXConfirmAccept,
-    handleMLXConfirmCancel,
+    requestMLXDownload,
+    hideMLXDirDialog,
+    confirmMLXDirDownload,
     proceedWithDownload,
     proceedWithMultipleDownloads,
     proceedWithCuratedDownload,
@@ -452,5 +468,6 @@ export const useUnifiedModelList = (
     setShowWarningDialog,
     setPendingDownload,
     setPendingVisionDownload,
+    setMlxDirName,
   };
 };

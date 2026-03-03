@@ -126,7 +126,18 @@ class HuggingFaceService {
         }
       }
       
-      const combinedModels = [...models, ...mlxModels];
+      const deduped = new Map<string, HFModel>();
+      [...models, ...mlxModels].forEach((model: HFModel) => {
+        if (!model?.id) {
+          return;
+        }
+        const existing = deduped.get(model.id);
+        if (!existing || (model.downloads || 0) > (existing.downloads || 0)) {
+          deduped.set(model.id, model);
+        }
+      });
+
+      const combinedModels = Array.from(deduped.values());
 
       const filteredModels = combinedModels.filter((model: HFModel) => {
         const hasGgufTag = model.tags?.some(tag => 
@@ -197,8 +208,7 @@ class HuggingFaceService {
       }
       
       const ggufFiles = modelFiles.filter((file: HFFile) => {
-        const isGgufOrBin = file.filename.endsWith('.gguf') || file.filename.endsWith('.bin');
-        return isGgufOrBin;
+        return file.filename.endsWith('.gguf');
       });
 
       return ggufFiles;
@@ -286,13 +296,13 @@ class HuggingFaceService {
     const hasWeightsNpz = files.some(f => f.filename.endsWith('.npz'));
     const hasGguf = files.some(f => f.filename.endsWith('.gguf'));
     
-    const repoNameContainsMlx = modelId.toLowerCase().includes('mlx') || 
-                                 modelId.toLowerCase().includes('mlx-community');
-    const tagsContainMlx = tags?.some(tag => tag.toLowerCase().includes('mlx'));
+    const repoName = modelId.toLowerCase();
+    const repoNameContainsMlx = repoName.includes('mlx') || repoName.includes('mlx-community');
+    const tagsContainMlx = Boolean(tags?.some(tag => tag.toLowerCase().includes('mlx')));
+    const hasMlxStructure = hasConfigJson && hasTokenizerJson && (hasSafetensors || hasWeightsNpz);
+    const hasLikelyMlxSignals = (tagsContainMlx || repoNameContainsMlx) && (hasSafetensors || hasWeightsNpz || hasConfigJson);
     
-    if ((hasConfigJson && hasTokenizerJson && (hasSafetensors || hasWeightsNpz)) || 
-        repoNameContainsMlx || 
-        tagsContainMlx) {
+    if ((hasMlxStructure || hasLikelyMlxSignals) && !hasGguf) {
       return ModelFormat.MLX;
     }
     
@@ -394,7 +404,7 @@ class HuggingFaceService {
     try {
       const urlObj = new URL(url);
       return urlObj.hostname === 'huggingface.co' && 
-             (url.includes('.gguf') || url.includes('.bin'));
+             url.includes('.gguf');
     } catch {
       return false;
     }

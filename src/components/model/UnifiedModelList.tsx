@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text, ActivityIndicator, Portal, Dialog, Button } from 'react-native-paper';
+import { Text, ActivityIndicator, Portal, Dialog, Button, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { theme } from '../../constants/theme';
@@ -58,6 +58,7 @@ const UnifiedModelList: React.FC<UnifiedModelListProps> = ({
     logic.setSelectedFiles,
     logic.proceedWithDownload,
     logic.proceedWithMultipleDownloads,
+    logic.requestMLXDownload,
     logic.proceedWithCuratedDownload,
     logic.showDialog,
     logic.convertHfModelToDownloadable,
@@ -150,6 +151,7 @@ const UnifiedModelList: React.FC<UnifiedModelListProps> = ({
         }}
         modelDetails={logic.selectedModel}
         onDownloadFile={handlers.handleDownloadFile}
+        onDownloadMLXModel={handlers.handleDownloadMLXModel}
       />
 
       <Portal>
@@ -171,24 +173,24 @@ const UnifiedModelList: React.FC<UnifiedModelListProps> = ({
       />
 
       <Portal>
-        <Dialog visible={logic.showMLXConfirmDialog} onDismiss={logic.handleMLXConfirmCancel}>
-          <Dialog.Title>Download MLX Model</Dialog.Title>
+        <Dialog visible={logic.mlxDirDialogVisible} onDismiss={logic.hideMLXDirDialog}>
+          <Dialog.Title>MLX Folder Name</Dialog.Title>
           <Dialog.Content>
-            <Text style={{ marginBottom: 8 }}>
-              This will download {logic.pendingMLXDownload?.fileCount} required MLX files for:
+            <Text style={{ marginBottom: 12 }}>
+              Enter a folder name for this MLX model package. All required MLX files will be downloaded into this folder.
             </Text>
-            <Text style={{ fontWeight: '600', marginBottom: 8 }}>
-              {logic.pendingMLXDownload?.modelName}
-            </Text>
-            <Text>
-              Total size: {logic.pendingMLXDownload?.totalSize ? 
-                (logic.pendingMLXDownload.totalSize / (1024 * 1024 * 1024)).toFixed(2) + ' GB' : 
-                'Unknown'}
-            </Text>
+            <TextInput
+              mode="outlined"
+              label="Folder Name"
+              value={logic.mlxDirName}
+              onChangeText={logic.setMlxDirName}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={logic.handleMLXConfirmCancel}>Cancel</Button>
-            <Button onPress={logic.handleMLXConfirmAccept}>Download</Button>
+            <Button onPress={logic.hideMLXDirDialog}>Cancel</Button>
+            <Button onPress={logic.confirmMLXDirDownload}>Download</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

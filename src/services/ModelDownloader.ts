@@ -185,7 +185,8 @@ class ModelDownloader extends EventEmitter {
   async downloadMLXModel(
     modelId: string,
     files: Array<{ filename: string; downloadUrl: string; size: number }>,
-    authToken?: string
+    authToken?: string,
+    targetDirName?: string
   ): Promise<{ downloadId: number }> {
     if (!this.isInitialized) {
       await this.initializationPromise;
@@ -196,7 +197,7 @@ class ModelDownloader extends EventEmitter {
         this.hasNotificationPermission = await this.requestNotificationPermissions();
       }
       
-      return await this.downloadTaskManager.downloadMLXModel(modelId, files, authToken);
+      return await this.downloadTaskManager.downloadMLXModel(modelId, files, authToken, targetDirName);
     } catch (error) {
       throw error;
     }
