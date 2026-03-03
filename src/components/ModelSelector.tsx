@@ -10,6 +10,7 @@ import {
   SectionList,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { theme } from '../constants/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -37,6 +38,46 @@ import { styles } from './ModelSelector.styles';
 import { renderAppleFoundationItem, renderLocalModelItem, renderOnlineModelItem, renderSectionHeader, renderItem, type RenderContext } from './ModelSelector.renderers';
 
 export type { ModelSelectorRef } from './ModelSelector.types';
+
+const initKey = 'model_selector_init_v1';
+
+type InitOverrides = {
+  n_ctx: number;
+  n_batch: number;
+  n_parallel: number;
+  n_threads: number;
+  n_gpu_layers: number;
+};
+
+const defaultInit: InitOverrides = {
+  n_ctx: LLAMA_INIT_CONFIG.n_ctx,
+  n_batch: LLAMA_INIT_CONFIG.n_batch,
+  n_parallel: LLAMA_INIT_CONFIG.n_parallel,
+  n_threads: LLAMA_INIT_CONFIG.n_threads,
+  n_gpu_layers: LLAMA_INIT_CONFIG.n_gpu_layers,
+};
+
+const toNum = (value: unknown, fallback: number) => {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return fallback;
+  }
+  return Math.round(value);
+};
+
+const parseInit = (raw: string): InitOverrides => {
+  try {
+    const parsed = JSON.parse(raw) as Partial<InitOverrides>;
+    return {
+      n_ctx: toNum(parsed.n_ctx, defaultInit.n_ctx),
+      n_batch: toNum(parsed.n_batch, defaultInit.n_batch),
+      n_parallel: toNum(parsed.n_parallel, defaultInit.n_parallel),
+      n_threads: toNum(parsed.n_threads, defaultInit.n_threads),
+      n_gpu_layers: toNum(parsed.n_gpu_layers, defaultInit.n_gpu_layers),
+    };
+  } catch {
+    return defaultInit;
+  }
+};
 
 const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorProps>(
   ({ isOpen, onClose, preselectedModelPath, isGenerating, onModelSelect, navigation: propNavigation }, ref) => {
@@ -68,13 +109,8 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
   const [appleFoundationEnabled, setAppleFoundationEnabled] = useState(false);
   const [appleFoundationAvailable, setAppleFoundationAvailable] = useState(false);
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-    const [initOverrides, setInitOverrides] = useState({
-      n_ctx: LLAMA_INIT_CONFIG.n_ctx,
-      n_batch: LLAMA_INIT_CONFIG.n_batch,
-      n_parallel: LLAMA_INIT_CONFIG.n_parallel,
-      n_threads: LLAMA_INIT_CONFIG.n_threads,
-      n_gpu_layers: LLAMA_INIT_CONFIG.n_gpu_layers,
-    });
+    const [initOverrides, setInitOverrides] = useState<InitOverrides>(defaultInit);
+    const [initHydrated, setInitHydrated] = useState(false);
     const [showInitPanel, setShowInitPanel] = useState(false);
     const getScreenH = () => Dimensions.get('window').height;
     const slideAnim = useRef(new Animated.Value(getScreenH())).current;
@@ -207,7 +243,7 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
       }
     };
 
-    const applyInitOverride = (key: 'n_ctx' | 'n_batch' | 'n_parallel' | 'n_threads' | 'n_gpu_layers', value: number) => {
+    const applyInitOverride = (key: keyof InitOverrides, value: number) => {
       setInitOverrides(prev => ({
         ...prev,
         [key]: Math.round(value),
@@ -215,14 +251,48 @@ const ModelSelector = forwardRef<{ refreshModels: () => void }, ModelSelectorPro
     };
 
     const resetInitOverrides = () => {
-      setInitOverrides({
-        n_ctx: LLAMA_INIT_CONFIG.n_ctx,
-        n_batch: LLAMA_INIT_CONFIG.n_batch,
-        n_parallel: LLAMA_INIT_CONFIG.n_parallel,
-        n_threads: LLAMA_INIT_CONFIG.n_threads,
-        n_gpu_layers: LLAMA_INIT_CONFIG.n_gpu_layers,
-      });
+      setInitOverrides(defaultInit);
     };
+
+    useEffect(() => {
+      let mounted = true;
+
+      const loadInit = async () => {
+        try {
+          const raw = await AsyncStorage.getItem(initKey);
+          if (!mounted) return;
+          if (raw) {
+            setInitOverrides(parseInit(raw));
+          }
+        } catch {
+        } finally {
+          if (mounted) {
+            setInitHydrated(true);
+          }
+        }
+      };
+
+      loadInit();
+
+      return () => {
+        mounted = false;
+      };
+    }, []);
+
+    useEffect(() => {
+      if (!initHydrated) {
+        return;
+      }
+
+      const saveInit = async () => {
+        try {
+          await AsyncStorage.setItem(initKey, JSON.stringify(initOverrides));
+        } catch {
+        }
+      };
+
+      saveInit();
+    }, [initOverrides, initHydrated]);
 
     const executeLocalLoad = async (
       modelPath: string,
