@@ -626,7 +626,13 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
               hideDialog();
               navigation.navigate('Register', {
                 redirectTo: 'MainTabs',
-                redirectParams: { screen: 'SettingsTab' }
+                redirectParams: {
+                  screen: 'ModelTab',
+                  params: {
+                    autoEnableRemoteModels: true,
+                    openRemoteTab: true,
+                  },
+                }
               });
             }}
           >
@@ -638,7 +644,13 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
               hideDialog();
               navigation.navigate('Login', {
                 redirectTo: 'MainTabs',
-                redirectParams: { screen: 'SettingsTab' }
+                redirectParams: {
+                  screen: 'ModelTab',
+                  params: {
+                    autoEnableRemoteModels: true,
+                    openRemoteTab: true,
+                  },
+                }
               });
             }}
           >
@@ -677,7 +689,13 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       if (result.requiresLogin) {
         navigation.navigate('Login', {
           redirectTo: 'MainTabs',
-          redirectParams: { screen: 'SettingsTab' }
+          redirectParams: {
+            screen: 'ModelTab',
+            params: {
+              autoEnableRemoteModels: true,
+              openRemoteTab: true,
+            },
+          }
         });
       } else if (result.emailNotVerified) {
         showDialog(
