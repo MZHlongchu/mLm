@@ -25,9 +25,12 @@ type ModelScreenProps = {
     BottomTabNavigationProp<TabParamList, 'ModelTab'>,
     NativeStackNavigationProp<RootStackParamList>
   >;
+  route?: {
+    params?: TabParamList['ModelTab'];
+  };
 };
 
-export default function ModelScreen({ navigation }: ModelScreenProps) {
+export default function ModelScreen({ navigation, route }: ModelScreenProps) {
   const { theme: currentTheme } = useTheme();
   const themeColors = theme[currentTheme as 'light' | 'dark'];
   
@@ -36,7 +39,7 @@ export default function ModelScreen({ navigation }: ModelScreenProps) {
   const [dialogMessage, setDialogMessage] = useState('');
   const [dialogActions, setDialogActions] = useState<React.ReactNode[]>([]);
 
-  const logic = useModelScreenLogic(navigation);
+  const logic = useModelScreenLogic(navigation, route?.params);
 
   const hideDialog = () => setDialogVisible(false);
 
