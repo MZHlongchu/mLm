@@ -57,7 +57,7 @@ export const useModelScreenLogic = (navigation: any, routeParams?: ModelRoutePar
   const [username, setUsername] = useState<string | null>(null);
   
   const buttonScale = useRef(new Animated.Value(1)).current;
-  const remoteIntentHandled = useRef(false);
+  const applyingRemoteIntent = useRef(false);
 
   useEffect(() => {
     checkLoginStatusAndUpdateUsername();
@@ -269,7 +269,7 @@ export const useModelScreenLogic = (navigation: any, routeParams?: ModelRoutePar
   }, [enableRemoteModels, activeTab]);
 
   useEffect(() => {
-    if (remoteIntentHandled.current) {
+    if (applyingRemoteIntent.current) {
       return;
     }
 
@@ -284,6 +284,8 @@ export const useModelScreenLogic = (navigation: any, routeParams?: ModelRoutePar
       return;
     }
 
+    applyingRemoteIntent.current = true;
+
     const applyIntent = async () => {
       try {
         let canOpenRemoteTab = enableRemoteModels;
@@ -297,7 +299,13 @@ export const useModelScreenLogic = (navigation: any, routeParams?: ModelRoutePar
           setActiveTab('remote');
         }
       } finally {
-        remoteIntentHandled.current = true;
+        if (typeof navigation.setParams === 'function') {
+          navigation.setParams({
+            autoEnableRemoteModels: undefined,
+            openRemoteTab: undefined,
+          });
+        }
+        applyingRemoteIntent.current = false;
       }
     };
 
