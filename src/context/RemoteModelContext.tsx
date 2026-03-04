@@ -71,7 +71,7 @@ export const RemoteModelProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setIsLoggedIn(logged);
 
         if (!logged) {
-          await disableRemoteModels(false);
+          await disableRemoteModels(true);
           return false;
         }
 
@@ -83,7 +83,7 @@ export const RemoteModelProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return true;
     } catch {
       setIsLoggedIn(false);
-      await disableRemoteModels(false);
+      await disableRemoteModels(true);
       return false;
     }
   }, [disableRemoteModels, loadPref]);
@@ -102,7 +102,7 @@ export const RemoteModelProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setIsLoggedIn(logged);
 
         if (!logged) {
-          await disableRemoteModels(false);
+          await disableRemoteModels(true);
           return;
         }
 
