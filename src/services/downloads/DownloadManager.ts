@@ -1,4 +1,3 @@
-import {Platform} from 'react-native';
 import { requireNativeModule, EventEmitter as ExpoEventEmitter } from 'expo-modules-core';
 import * as FileSystem from 'expo-file-system';
 
@@ -19,7 +18,6 @@ try {
 } catch (_) {
   TransferModule = null;
 }
-const LOG_TAG = 'BackgroundDownloadService';
 
 export class BackgroundDownloadService {
   private activeTransfers: DownloadMap;
@@ -30,12 +28,12 @@ export class BackgroundDownloadService {
   constructor() {
     this.activeTransfers = new Map();
 
-    if (Platform.OS === 'android' && TransferModule) {
-      this.setupAndroidEventHandlers();
+    if (TransferModule) {
+      this.setupNativeEventHandlers();
     }
   }
 
-  private setupAndroidEventHandlers() {
+  private setupNativeEventHandlers() {
     this.expoEventEmitter = new ExpoEventEmitter(TransferModule);
 
     this.eventSubscriptions.push(
@@ -284,178 +282,30 @@ export class BackgroundDownloadService {
       throw err;
     }
 
-    if (Platform.OS === 'ios') {
-      return await this.startIOSTransfer(model, destinationPath, authToken);
+    if (TransferModule) {
+      return await this.startNativeTransfer(model, destinationPath, authToken);
     }
 
-    return await this.startAndroidTransfer(model, destinationPath, authToken);
+    throw new Error('TransferModule is not available');
   }
 
-  private async startIOSTransfer(
-    model: StoredModel,
-    destinationPath: string,
-    authToken?: string | null,
-  ): Promise<string> {
-    const RNFS = require('@dr.pogodin/react-native-fs');
-
-    try {
-      const transferJob: DownloadJob = {
-        model,
-        downloadId: Date.now().toString(),
-        state: {
-          isDownloading: true,
-          progress: {
-            bytesDownloaded: 0,
-            bytesTotal: 0,
-            progress: 0,
-            speed: '0 B/s',
-            eta: 'calculating',
-            rawSpeed: 0,
-            rawEta: 0,
-          },
-        },
-        lastBytesWritten: 0,
-        lastUpdateTime: Date.now(),
-      };
-
-  this.activeTransfers.set(model.name, transferJob);
-
-      const downloadResult = RNFS.downloadFile({
-        fromUrl: model.path,
-        toFile: destinationPath,
-        background: true,
-        discretionary: false,
-        progressInterval: 500,
-        headers: authToken ? {Authorization: `Bearer ${authToken}`} : {},
-        begin: (res: any) => {
-          if (transferJob.state.progress) {
-            transferJob.state.progress.bytesTotal = res.contentLength;
-            this.eventCallbacks.onProgress?.(model.name, transferJob.state.progress);
-          }
-        },
-        progress: (res: any) => {
-          if (!this.activeTransfers.has(model.name)) {
-            return;
-          }
-
-          const transfer = this.activeTransfers.get(model.name)!;
-
-          if (transfer.state.isCancelling) {
-            return;
-          }
-          const currentTimestamp = Date.now();
-          const timeDelta = (currentTimestamp - transfer.lastUpdateTime) / 1000 || 1;
-          const bytesDelta = res.bytesWritten - transfer.lastBytesWritten;
-          const transferSpeedBps = bytesDelta / timeDelta;
-
-          const progressPercent = res.contentLength > 0 ? 
-            (res.bytesWritten / res.contentLength) * 100 : 0;
-          
-          const speedFormatted = this.formatTransferSpeed(transferSpeedBps);
-          const etaFormatted = this.calculateTransferEta(
-            res.bytesWritten,
-            res.contentLength,
-            transferSpeedBps,
-          );
-
-          const progress: DownloadProgress = {
-            bytesDownloaded: res.bytesWritten,
-            bytesTotal: res.contentLength,
-            progress: progressPercent,
-            speed: speedFormatted,
-            eta: etaFormatted,
-            rawSpeed: transferSpeedBps,
-            rawEta: res.contentLength - res.bytesWritten > 0 ? 
-              (res.contentLength - res.bytesWritten) / transferSpeedBps : 0,
-          };
-
-          transfer.state.progress = progress;
-          transfer.lastBytesWritten = res.bytesWritten;
-          transfer.lastUpdateTime = currentTimestamp;
-
-          this.eventCallbacks.onProgress?.(model.name, progress);
-        },
-      });
-
-      const nativeDownloadId = downloadResult.jobId.toString();
-
-      transferJob.downloadId = nativeDownloadId;
-      transferJob.rnfsJobId = downloadResult.jobId;
-
-  this.eventCallbacks.onStart?.(model.name, nativeDownloadId);
-
-      downloadResult.promise
-        .then(() => {
-          const transfer = this.activeTransfers.get(model.name);
-          if (transfer && transfer.state.progress) {
-            transfer.state.isDownloading = false;
-            transfer.state.progress.progress = 100;
-            transfer.state.progress.speed = '0 B/s';
-            transfer.state.progress.eta = '0 sec';
-
-            this.eventCallbacks.onComplete?.(model.name);
-            this.activeTransfers.delete(model.name);
-          }
-        })
-        .catch((error: Error) => {
-          const transfer = this.activeTransfers.get(model.name);
-          const errorMessage = error?.message || '';
-          const wasAborted = errorMessage.includes('aborted') || errorMessage.includes('cancelled');
-
-          if (transfer) {
-            transfer.state.isDownloading = false;
-            transfer.state.progress = undefined;
-
-            if (transfer.state.isCancelling || wasAborted) {
-              this.eventCallbacks.onCancelled?.(model.name);
-              this.activeTransfers.delete(model.name);
-            } else {
-              this.eventCallbacks.onError?.(model.name, error);
-              this.activeTransfers.delete(model.name);
-            }
-          }
-        });
-
-      return nativeDownloadId;
-    } catch (error) {
-      this.activeTransfers.delete(model.name);
-      throw error;
-    }
-  }
-
-  private async startAndroidTransfer(
+  private async startNativeTransfer(
     model: StoredModel,
     destinationPath: string,
     authToken?: string | null,
   ): Promise<string> {
     if (!TransferModule) {
-      console.error(`${LOG_TAG}: TransferModule_not_available`);
-      throw new Error('TransferModule is not available on Android');
+      throw new Error('TransferModule is not available');
     }
 
-    console.log(`${LOG_TAG}: TransferModule_available:`, typeof TransferModule);
-    console.log(`${LOG_TAG}: TransferModule_methods:`, Object.keys(TransferModule));
-
     try {
-      const transferOptions = {
-        url: model.path,
-        destination: destinationPath,
-        headers: authToken ? {Authorization: `Bearer ${authToken}`} : undefined,
-      };
-
-      console.log(`${LOG_TAG}: android_transfer_starting:`, model.name);
-      console.log(`${LOG_TAG}: transfer_options:`, JSON.stringify(transferOptions, null, 2));
-
       const result = await TransferModule.beginTransfer(
-        transferOptions.url,
-        transferOptions.destination,
-        transferOptions.headers,
+        model.path,
+        destinationPath,
+        authToken ? {Authorization: `Bearer ${authToken}`} : undefined,
       );
 
-      console.log(`${LOG_TAG}: beginTransfer_result:`, JSON.stringify(result, null, 2));
-
       if (!result || !result.transferId) {
-        console.error(`${LOG_TAG}: invalid_result:`, result);
         throw new Error('Failed to start transfer - no transfer ID returned');
       }
 
@@ -479,17 +329,11 @@ export class BackgroundDownloadService {
       };
 
       this.activeTransfers.set(model.name, transferJob);
-      console.log(`${LOG_TAG}: transfer_job_created:`, model.name, result.transferId);
-      console.log(`${LOG_TAG}: active_transfers_count:`, this.activeTransfers.size);
-      
-  this.eventCallbacks.onStart?.(model.name, result.transferId);
-      console.log(`${LOG_TAG}: onStart_callback_called:`, model.name);
 
-      console.log(`${LOG_TAG}: android_transfer_created:`, result.transferId);
+      this.eventCallbacks.onStart?.(model.name, result.transferId);
+
       return result.transferId;
     } catch (error) {
-      console.error(`${LOG_TAG}: android_start_failed:`, error);
-      console.error(`${LOG_TAG}: error_details:`, JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
       throw error;
     }
   }
@@ -503,24 +347,12 @@ export class BackgroundDownloadService {
     transfer.state.isCancelling = true;
 
     try {
-      if (Platform.OS === 'android' && TransferModule) {
+      if (TransferModule) {
         await TransferModule.cancelTransfer(transfer.downloadId);
-      } else if (Platform.OS === 'ios') {
-        if (transfer.rnfsJobId) {
-          const RNFS = require('@dr.pogodin/react-native-fs');
-          await RNFS.stopDownload(transfer.rnfsJobId);
-        }
-      }
-
-      if (Platform.OS === 'ios') {
-        setTimeout(() => {
-          this.eventCallbacks.onCancelled?.(modelName);
-        }, 100);
       }
 
       this.activeTransfers.delete(modelName);
     } catch (error) {
-      console.error(`${LOG_TAG}: abort_failed:`, error);
       this.activeTransfers.delete(modelName);
       throw error;
     }
@@ -588,13 +420,12 @@ export class BackgroundDownloadService {
   }
 
   async synchronizeWithActiveTransfers(models: StoredModel[] = []): Promise<void> {
-    if (Platform.OS !== 'android' || !TransferModule) {
+    if (!TransferModule) {
       return;
     }
 
     try {
       const activeTransferList = await TransferModule.getOngoingTransfers();
-      console.log(`${LOG_TAG}: sync_transfers:`, activeTransferList.length);
 
       for (const transfer of activeTransferList) {
         const modelName = transfer.modelName || this.extractModelName(transfer.destination, transfer.url);
@@ -642,12 +473,10 @@ export class BackgroundDownloadService {
         this.eventCallbacks.onProgress?.(modelName, transferJob.state.progress);
       }
     } catch (error) {
-      console.error(`${LOG_TAG}: Failed to sync with active transfers:`, error);
     }
   }
 
   setEventCallbacks(callbacks: DownloadEventCallbacks): void {
-    console.log(`${LOG_TAG}: event_callbacks_set:`, Object.keys(callbacks));
     this.eventCallbacks = callbacks;
   }
 
@@ -656,8 +485,6 @@ export class BackgroundDownloadService {
   }
 
   shutdownService(): void {
-    console.log(`${LOG_TAG}: service_shutdown`);
-    
     this.eventSubscriptions.forEach(sub => sub.remove());
     this.eventSubscriptions = [];
     
