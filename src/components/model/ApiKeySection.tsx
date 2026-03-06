@@ -353,7 +353,8 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({ onInputFocus }) => {
   }
 
   return (
-    <Surface style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <Surface style={[styles.container, { backgroundColor: themeColors.background }]}> 
+      <View style={styles.containerContent}>
       {apiKeyItems.map((item) => (
         <View key={item.id} style={styles.accordionWrapper}>
           <TouchableOpacity
@@ -538,6 +539,7 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({ onInputFocus }) => {
           )}
         </View>
       ))}
+      </View>
 
       <Portal>
         <Dialog visible={dialogVisible} onDismiss={hideDialog}>
@@ -568,6 +570,9 @@ const styles = StyleSheet.create({
     marginBottom: 25,
     borderRadius: 16,
     elevation: 2,
+  },
+  containerContent: {
+    borderRadius: 16,
     overflow: 'hidden',
   },
   accordionWrapper: {
