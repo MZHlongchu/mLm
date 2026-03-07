@@ -17,7 +17,7 @@ import { useDownloads } from '../context/DownloadContext';
 import AppHeader from '../components/AppHeader';
 import { getThemeAwareColor } from '../utils/ColorUtils';
 import { Dialog, Portal, Text, Button } from 'react-native-paper';
-import GlobalDialog from '../components/GlobalDialog';
+import GlobalDialog from '../components/Dialog';
 
 const formatBytes = (bytes: number) => {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';

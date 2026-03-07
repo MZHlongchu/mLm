@@ -1,5 +1,5 @@
 import React from 'react';
-import GlobalDialog from './GlobalDialog';
+import GlobalDialog from './Dialog';
 
 interface MemoryWarningDialogProps {
   visible: boolean;
