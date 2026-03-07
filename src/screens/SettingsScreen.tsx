@@ -26,7 +26,7 @@ import SupportSection from '../components/settings/SupportSection';
 import ModelSettingsSection, { type GpuConfig } from '../components/settings/ModelSettingsSection';
 import SystemInfoSection from '../components/settings/SystemInfoSection';
 import StorageSection from '../components/settings/StorageSection';
-import { Portal, PaperProvider, Button, Text as PaperText, ActivityIndicator as PaperActivityIndicator } from 'react-native-paper';
+import { ActivityIndicator as PaperActivityIndicator } from 'react-native-paper';
 import Dialog from '../components/Dialog';
 import * as WebBrowser from 'expo-web-browser';
 import { DEFAULT_SETTINGS } from '../config/llamaConfig';
@@ -123,24 +123,34 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogTitle, setDialogTitle] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
-  const [dialogActions, setDialogActions] = useState<React.ReactNode[]>([]);
   const [dialogLoading, setDialogLoading] = useState(false);
+  const [dialogPrimaryText, setDialogPrimaryText] = useState<string | undefined>(undefined);
+  const [dialogPrimaryPress, setDialogPrimaryPress] = useState<(() => void) | undefined>(undefined);
+  const [dialogSecondaryText, setDialogSecondaryText] = useState<string | undefined>(undefined);
+  const [dialogSecondaryPress, setDialogSecondaryPress] = useState<(() => void) | undefined>(undefined);
 
   const hideDialog = () => {
     setDialogVisible(false);
     setDialogLoading(false);
   };
 
+  interface BtnCfg { label: string; onPress: () => void }
+
   const showDialog = (
     title: string,
     message: string,
-    actions: React.ReactNode[],
+    primary?: BtnCfg,
+    secondary?: BtnCfg,
     loading: boolean = false
   ) => {
     setDialogTitle(title);
     setDialogMessage(message);
-    setDialogActions(actions);
     setDialogLoading(loading);
+    const autoClose = () => setDialogVisible(false);
+    setDialogPrimaryText(loading ? undefined : (primary?.label ?? 'OK'));
+    setDialogPrimaryPress(loading ? undefined : () => primary ? primary.onPress : autoClose);
+    setDialogSecondaryText(loading ? undefined : secondary?.label);
+    setDialogSecondaryPress(loading ? undefined : (secondary ? () => secondary.onPress : undefined));
     setDialogVisible(true);
   };
 
@@ -305,9 +315,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const handleInferenceEngineToggle = async (engine: InferenceEngine, enabled: boolean) => {
     const next = { ...engineEnabled, [engine]: enabled };
     if (!next.llama && !next.mlx) {
-      showDialog('Engine Required', 'At least one inference engine must remain enabled.', [
-        <Button key="ok" onPress={hideDialog}>OK</Button>
-      ]);
+      showDialog('Engine Required', 'At least one inference engine must remain enabled.');
       return;
     }
 
@@ -323,9 +331,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       }
     } catch (error) {
       setEngineEnabled(prev => ({ ...prev, [engine]: previous }));
-      showDialog('Error', 'Failed to update inference engine preference', [
-        <Button key="ok" onPress={hideDialog}>OK</Button>
-      ]);
+      showDialog('Error', 'Failed to update inference engine preference');
     }
   };
 
@@ -337,9 +343,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       await gpuSettingsService.setEnabled(enabled);
     } catch (error) {
       setGpuSettings(prev => ({ ...prev, enabled: previous }));
-      showDialog('Error', 'Failed to update GPU acceleration preference', [
-        <Button key="ok" onPress={hideDialog}>OK</Button>,
-      ]);
+      showDialog('Error', 'Failed to update GPU acceleration preference');
     }
   };
 
@@ -369,9 +373,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       setModelSettings(updatedSettings);
       await llamaManager.updateSettings(updatedSettings);
     } catch (error) {
-      showDialog('Error', 'Failed to save settings', [
-        <Button key="ok" onPress={hideDialog}>OK</Button>
-      ]);
+      showDialog('Error', 'Failed to save settings');
     }
   };
 
@@ -384,9 +386,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       }
       await Linking.openURL(normalizedUrl);
     } catch (error) {
-      showDialog('Error', 'Failed to open link', [
-        <Button key="ok" onPress={hideDialog}>OK</Button>,
-      ]);
+      showDialog('Error', 'Failed to open link');
     }
   };
 
@@ -548,13 +548,9 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         await clearDirectory(FileSystem.cacheDirectory);
       }
       await loadStorageInfo();
-      showDialog('Success', 'Cache cleared successfully', [
-        <Button key="ok" onPress={hideDialog}>OK</Button>
-      ]);
+      showDialog('Success', 'Cache cleared successfully');
     } catch (error) {
-      showDialog('Error', 'Failed to clear cache', [
-        <Button key="ok" onPress={hideDialog}>OK</Button>
-      ]);
+      showDialog('Error', 'Failed to clear cache');
     } finally {
       setClearingType(null);
     }
@@ -566,13 +562,9 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       const tempDir = `${FileSystem.documentDirectory}temp`;
       await clearDirectory(tempDir);
       await loadStorageInfo();
-      showDialog('Success', 'Temporary files cleared successfully', [
-        <Button key="ok" onPress={hideDialog}>OK</Button>
-      ]);
+      showDialog('Success', 'Temporary files cleared successfully');
     } catch (error) {
-      showDialog('Error', 'Failed to clear temporary files', [
-        <Button key="ok" onPress={hideDialog}>OK</Button>
-      ]);
+      showDialog('Error', 'Failed to clear temporary files');
     } finally {
       setClearingType(null);
     }
@@ -582,12 +574,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     const modelsDir = `${FileSystem.documentDirectory}models`;
     const hfDir = `${FileSystem.documentDirectory}huggingface`;
 
-    showDialog(
-      '',
-      '',
-      [],
-      true
-    );
+    showDialog('', '', undefined, undefined, true);
 
     try {
       const [modelsSize, hfSize] = await Promise.all([
@@ -600,37 +587,27 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       showDialog(
         'Clear All Models',
         `Are you sure you want to delete all models? This action cannot be undone.\n\nStorage to be freed: ${totalSizeText}`,
-        [
-          <Button key="cancel" onPress={hideDialog}>Cancel</Button>,
-          <Button
-            key="delete"
-            onPress={async () => {
-              hideDialog();
-              try {
-                setClearingType('models');
-                await modelDownloader.clearAllModels();
-                await modelSettingsService.clearAllSettings();
-                await loadStorageInfo();
-                showDialog('Success', 'All models cleared successfully', [
-                  <Button key="ok" onPress={hideDialog}>OK</Button>
-                ]);
-              } catch (error) {
-                showDialog('Error', 'Failed to clear models', [
-                  <Button key="ok" onPress={hideDialog}>OK</Button>
-                ]);
-              } finally {
-                setClearingType(null);
-              }
-            }}
-          >
-            Delete
-          </Button>
-        ]
+        {
+          label: 'Delete',
+          onPress: async () => {
+            hideDialog();
+            try {
+              setClearingType('models');
+              await modelDownloader.clearAllModels();
+              await modelSettingsService.clearAllSettings();
+              await loadStorageInfo();
+              showDialog('Success', 'All models cleared successfully');
+            } catch (error) {
+              showDialog('Error', 'Failed to clear models');
+            } finally {
+              setClearingType(null);
+            }
+          }
+        },
+        { label: 'Cancel', onPress: hideDialog }
       );
     } catch (error) {
-      showDialog('Error', 'Failed to clear models', [
-        <Button key="ok" onPress={hideDialog}>OK</Button>
-      ]);
+      showDialog('Error', 'Failed to clear models');
     }
   };
 
@@ -639,45 +616,38 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       showDialog(
         'Authentication Required',
         'InferrLM will require internet access and you need an account to enable remote models.',
-        [
-          <Button key="cancel" onPress={hideDialog}>Cancel</Button>,
-          <Button 
-            key="signup" 
-            onPress={() => {
-              hideDialog();
-              navigation.navigate('Register', {
-                redirectTo: 'MainTabs',
-                redirectParams: {
-                  screen: 'ModelTab',
-                  params: {
-                    autoEnableRemoteModels: true,
-                    openRemoteTab: true,
-                  },
-                }
-              });
-            }}
-          >
-            Sign Up
-          </Button>,
-          <Button 
-            key="login" 
-            onPress={() => {
-              hideDialog();
-              navigation.navigate('Login', {
-                redirectTo: 'MainTabs',
-                redirectParams: {
-                  screen: 'ModelTab',
-                  params: {
-                    autoEnableRemoteModels: true,
-                    openRemoteTab: true,
-                  },
-                }
-              });
-            }}
-          >
-            Sign In
-          </Button>
-        ]
+        {
+          label: 'Sign In',
+          onPress: () => {
+            hideDialog();
+            navigation.navigate('Login', {
+              redirectTo: 'MainTabs',
+              redirectParams: {
+                screen: 'ModelTab',
+                params: {
+                  autoEnableRemoteModels: true,
+                  openRemoteTab: true,
+                },
+              }
+            });
+          }
+        },
+        {
+          label: 'Sign Up',
+          onPress: () => {
+            hideDialog();
+            navigation.navigate('Register', {
+              redirectTo: 'MainTabs',
+              redirectParams: {
+                screen: 'ModelTab',
+                params: {
+                  autoEnableRemoteModels: true,
+                  openRemoteTab: true,
+                },
+              }
+            });
+          }
+        }
       );
       return;
     }
@@ -688,18 +658,14 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         showDialog(
           'Email Verification Required',
           'You need to verify your email address before enabling remote models.',
-          [
-            <Button key="cancel" onPress={hideDialog}>Cancel</Button>,
-            <Button 
-              key="profile" 
-              onPress={() => {
-                hideDialog();
-                navigation.navigate('Profile');
-              }}
-            >
-              Go to Profile
-            </Button>
-          ]
+          {
+            label: 'Go to Profile',
+            onPress: () => {
+              hideDialog();
+              navigation.navigate('Profile');
+            }
+          },
+          { label: 'Cancel', onPress: hideDialog }
         );
         return;
       }
@@ -722,18 +688,14 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         showDialog(
           'Email Verification Required',
           'You need to verify your email address before enabling remote models.',
-          [
-            <Button key="cancel" onPress={hideDialog}>Cancel</Button>,
-            <Button 
-              key="profile" 
-              onPress={() => {
-                hideDialog();
-                navigation.navigate('Profile');
-              }}
-            >
-              Go to Profile
-            </Button>
-          ]
+          {
+            label: 'Go to Profile',
+            onPress: () => {
+              hideDialog();
+              navigation.navigate('Profile');
+            }
+          },
+          { label: 'Cancel', onPress: hideDialog }
         );
       }
     }
@@ -863,9 +825,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
                 }
                 handleCloseDialog();
               } catch (error) {
-                showDialog('Error', 'Failed to save setting', [
-                  <Button key="ok" onPress={hideDialog}>OK</Button>,
-                ]);
+                showDialog('Error', 'Failed to save setting');
               }
             }}
             defaultValue={
@@ -908,39 +868,34 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
 
       </ScrollView>
 
-      <Portal>
-        <Dialog
-          visible={showAppleFoundationDialog}
-          onDismiss={() => setShowAppleFoundationDialog(false)}
-        >
-          <Dialog.Title>Apple Intelligence</Dialog.Title>
-          <Dialog.Content>
-            <PaperText>Apple Intelligence not supported on this device.</PaperText>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowAppleFoundationDialog(false)}>OK</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <Dialog
+        visible={showAppleFoundationDialog}
+        onDismiss={() => setShowAppleFoundationDialog(false)}
+        title="Apple Intelligence"
+        description="Apple Intelligence not supported on this device."
+        buttonText="OK"
+        onClose={() => setShowAppleFoundationDialog(false)}
+      />
 
-      <Portal>
-        <Dialog visible={dialogVisible} onDismiss={hideDialog}>
-          {!!dialogTitle && <Dialog.Title>{dialogTitle}</Dialog.Title>}
-          <Dialog.Content>
-            {!!dialogMessage && <PaperText>{dialogMessage}</PaperText>}
-            {dialogLoading && (
-              <View style={styles.dialogLoader}>
-                <PaperActivityIndicator size="large" />
-              </View>
-            )}
-          </Dialog.Content>
-          <Dialog.Actions>
-            {dialogActions.map((ActionComponent, index) =>
-              React.isValidElement(ActionComponent) ? React.cloneElement(ActionComponent, { key: index }) : null
-            )}
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <Dialog
+        visible={dialogVisible && dialogLoading}
+        onDismiss={undefined}
+      >
+        <View style={styles.dialogLoader}>
+          <PaperActivityIndicator size="large" />
+        </View>
+      </Dialog>
+
+      <Dialog
+        visible={dialogVisible && !dialogLoading}
+        onDismiss={hideDialog}
+        title={dialogTitle || undefined}
+        description={dialogMessage || undefined}
+        primaryButtonText={dialogPrimaryText}
+        onPrimaryPress={dialogPrimaryPress}
+        secondaryButtonText={dialogSecondaryText}
+        onSecondaryPress={dialogSecondaryPress}
+      />
     </View>
   );
 }
