@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { TextInput, Button, Dialog, Portal } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import { fs as FileSystem } from '../services/fs';
 import { useTheme } from '../context/ThemeContext';
 import { theme } from '../constants/theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';

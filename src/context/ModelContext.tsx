@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import * as FileSystem from 'expo-file-system';
+import { fs as FileSystem } from '../services/fs';
 import { llamaManager } from '../utils/LlamaManager';
 import { engineService } from '../services/inference-engine-service';
 import { Snackbar, Text } from 'react-native-paper';

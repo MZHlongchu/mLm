@@ -5,7 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { fs as FileSystem } from '../services/fs';
 import { useTheme } from '../context/ThemeContext';
 import { theme } from '../constants/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';

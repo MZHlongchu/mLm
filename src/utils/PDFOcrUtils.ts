@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { fs as FileSystem } from '../services/fs';
 import PdfImage from 'pdf-image';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 

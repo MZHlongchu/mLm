@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { fs as FileSystem } from '../../services/fs';
 import { useTheme } from '../../context/ThemeContext';
 import { useModel } from '../../context/ModelContext';
 import { theme } from '../../constants/theme';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { fs as FileSystem } from '../../services/fs';
 import { useTheme } from '../../context/ThemeContext';
 import { theme } from '../../constants/theme';
 import { getThemeAwareColor, getDocumentIconColor } from '../../utils/ColorUtils';

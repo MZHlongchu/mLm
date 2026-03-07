@@ -17,7 +17,7 @@ import { llamaManager } from '../utils/LlamaManager';
 import ModelSettingDialog from '../components/ModelSettingDialog';
 import StopWordsDialog from '../components/StopWordsDialog';
 import SystemPromptDialog from '../components/SystemPromptDialog';
-import * as FileSystem from 'expo-file-system';
+import { fs as FileSystem } from '../services/fs';
 import { useFocusEffect } from '@react-navigation/native';
 import { modelDownloader } from '../services/ModelDownloader';
 import AppearanceSection from '../components/settings/AppearanceSection';

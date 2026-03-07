@@ -8,7 +8,7 @@ import {
   type NativeBackendDeviceInfo,
 } from 'llama.rn';
 import { Platform, NativeModules } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { fs as FileSystem } from '../services/fs';
 import EventEmitter from 'eventemitter3';
 import { ModelSettings } from '../services/ModelSettingsService';
 import { 

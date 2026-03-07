@@ -1,6 +1,6 @@
 import { LLM } from 'react-native-nitro-mlx';
 import { EngineCaps, GenOpts, InferenceManager, Msg } from './inference-manager';
-import * as FileSystem from 'expo-file-system';
+import { fs as FileSystem } from '../services/fs';
 
 const caps: EngineCaps = {
   embeddings: false,
