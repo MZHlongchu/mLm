@@ -123,6 +123,24 @@ const GlobalDialog: React.FC<GlobalDialogProps> = ({
               <TouchableOpacity
                 style={[
                   styles.modalButton,
+                  styles.secondaryButton,
+                  { backgroundColor: secondaryButtonColor || themeColors.cardBackground },
+                ]}
+                onPress={onSecondaryPress || onClose}
+              >
+                <Text
+                  style={[
+                    styles.modalButtonText,
+                    { color: secondaryButtonTextColor || themeColors.text },
+                  ]}
+                >
+                  {secondaryButtonText}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
                   styles.primaryButton,
                   { backgroundColor: primaryButtonColor || themeColors.primary },
                 ]}
@@ -135,24 +153,6 @@ const GlobalDialog: React.FC<GlobalDialogProps> = ({
                   ]}
                 >
                   {primaryButtonText}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.secondaryButton,
-                  { backgroundColor: secondaryButtonColor || themeColors.secondaryText },
-                ]}
-                onPress={onSecondaryPress || onClose}
-              >
-                <Text
-                  style={[
-                    styles.modalButtonText,
-                    { color: secondaryButtonTextColor },
-                  ]}
-                >
-                  {secondaryButtonText}
                 </Text>
               </TouchableOpacity>
             </View>
