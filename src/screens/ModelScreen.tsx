@@ -7,7 +7,7 @@ import { RootStackParamList, TabParamList } from '../types/navigation';
 import { useTheme } from '../context/ThemeContext';
 import { theme } from '../constants/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Portal, Button } from 'react-native-paper';
+import { ShowDialogFn } from '../hooks/useDialog';
 import Dialog from '../components/Dialog';
 import { StorageWarningDialog } from '../components/model/StorageWarningDialog';
 import { ModelScreenHeader } from '../components/model/ModelScreenHeader';
@@ -38,16 +38,23 @@ export default function ModelScreen({ navigation, route }: ModelScreenProps) {
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogTitle, setDialogTitle] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
-  const [dialogActions, setDialogActions] = useState<React.ReactNode[]>([]);
+  const [dialogPrimaryText, setDialogPrimaryText] = useState<string | undefined>(undefined);
+  const [dialogPrimaryPress, setDialogPrimaryPress] = useState<(() => void) | undefined>(undefined);
+  const [dialogSecondaryText, setDialogSecondaryText] = useState<string | undefined>(undefined);
+  const [dialogSecondaryPress, setDialogSecondaryPress] = useState<(() => void) | undefined>(undefined);
 
   const logic = useModelScreenLogic(navigation, route?.params);
 
   const hideDialog = () => setDialogVisible(false);
 
-  const showDialog = (title: string, message: string, actions: React.ReactNode[]) => {
+  const showDialog: ShowDialogFn = (title, message, primary?, secondary?) => {
     setDialogTitle(title);
     setDialogMessage(message);
-    setDialogActions(actions);
+    const autoClose = () => setDialogVisible(false);
+    setDialogPrimaryText(primary?.label ?? 'OK');
+    setDialogPrimaryPress(() => primary ? primary.onPress : autoClose);
+    setDialogSecondaryText(secondary?.label);
+    setDialogSecondaryPress(secondary ? () => secondary.onPress : undefined);
     setDialogVisible(true);
   };
 
@@ -70,19 +77,14 @@ export default function ModelScreen({ navigation, route }: ModelScreenProps) {
     showDialog(
       'Delete Model',
       `Are you sure you want to delete ${model.name}?`,
-      [
-        <Button key="cancel" onPress={hideDialog} textColor={themeColors.text}>Cancel</Button>,
-        <Button
-          key="delete"
-          onPress={async () => {
-            hideDialog();
-            await logic.confirmDelete(model, showDialog);
-          }}
-          textColor="#FF5C5C"
-        >
-          Delete
-        </Button>
-      ]
+      {
+        label: 'Delete',
+        onPress: async () => {
+          hideDialog();
+          await logic.confirmDelete(model, showDialog);
+        }
+      },
+      { label: 'Cancel', onPress: hideDialog }
     );
   };
 
@@ -181,22 +183,16 @@ export default function ModelScreen({ navigation, route }: ModelScreenProps) {
         onCancelDownload={cancelDownload}
       />
 
-      <Portal>
-        <Dialog visible={dialogVisible} onDismiss={hideDialog}>
-          <Dialog.Title style={{ color: themeColors.text }}>{dialogTitle}</Dialog.Title>
-          <Dialog.Content>
-            <Text style={{ color: themeColors.text }}>{dialogMessage}</Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            {dialogActions.length > 0 
-              ? dialogActions.map((ActionComponent, index) =>
-                  React.isValidElement(ActionComponent) ? React.cloneElement(ActionComponent, { key: index }) : null
-                )
-              : <Button key="ok" onPress={hideDialog} textColor={themeColors.text}>OK</Button>
-            }
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <Dialog
+        visible={dialogVisible}
+        onDismiss={hideDialog}
+        title={dialogTitle || undefined}
+        description={dialogMessage || undefined}
+        primaryButtonText={dialogPrimaryText}
+        onPrimaryPress={dialogPrimaryPress}
+        secondaryButtonText={dialogSecondaryText}
+        onSecondaryPress={dialogSecondaryPress}
+      />
 
       {(logic.isLoading || logic.importingModelName) && (
         <View style={styles.loadingOverlay}>
