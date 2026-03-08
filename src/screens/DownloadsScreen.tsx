@@ -117,10 +117,25 @@ export default function DownloadsScreen() {
     status: data.status || 'unknown'
   }));
 
+  /*
+    iOS background URLSession throttles didWriteData delegate callbacks, so native
+    progress events arrive infrequently. Polling synchronizeWithActiveTransfers via
+    ensureDownloadsAreRunning() queries the URLSession task byte counts directly,
+    giving real-time progress regardless of delegate callback frequency.
+  */
+  const hasActive = downloads.length > 0;
+
   useEffect(() => {
-    modelDownloader.ensureDownloadsAreRunning().catch(() => {
-    });
-  }, []);
+    modelDownloader.ensureDownloadsAreRunning().catch(() => {});
+
+    if (!hasActive) return;
+
+    const id = setInterval(() => {
+      modelDownloader.ensureDownloadsAreRunning().catch(() => {});
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [hasActive]);
 
   useEffect(() => {
     const loadMlxPackageFiles = async () => {
