@@ -56,7 +56,7 @@ public class TransferModule: Module {
                       userInfo: [NSLocalizedDescriptionKey: "invalid_url"])
       }
 
-      let transferId = String(Int(Date().timeIntervalSince1970 * 1000))
+      let transferId = UUID().uuidString
       let modelName = Self.extractModelName(destination) ?? transferId
 
       var request = URLRequest(url: downloadUrl)
@@ -80,8 +80,8 @@ public class TransferModule: Module {
         for task in downloadTasks where task.taskDescription == transferId {
           task.cancel()
         }
+        self.removeMeta(transferId)
       }
-      self.removeMeta(transferId)
       return true
     }
 
@@ -214,11 +214,13 @@ public class TransferModule: Module {
       for task in downloadTasks {
         guard let tid = task.taskDescription, task.state == .running || task.state == .suspended else { continue }
         if self.getMeta(tid) == nil {
-          let modelName = tid
-          let entry = TransferMeta(
-            transferId: tid, destination: "", modelName: modelName, url: ""
-          )
-          self.setMeta(tid, entry)
+          /*
+            Metadata was cleared (e.g. UserDefaults eviction or reinstall).
+            Without a destination path there is nowhere to put the file,
+            so cancel the task rather than silently losing data later.
+          */
+          task.cancel()
+          continue
         }
         if task.state == .suspended {
           task.resume()
@@ -238,8 +240,8 @@ public class TransferModule: Module {
     meta = decoded
   }
 
-  private func saveMeta() {
-    guard let data = try? JSONEncoder().encode(meta) else { return }
+  private func saveMeta(_ snapshot: [String: TransferMeta]) {
+    guard let data = try? JSONEncoder().encode(snapshot) else { return }
     UserDefaults.standard.set(data, forKey: Self.storeKey)
   }
 
@@ -252,15 +254,17 @@ public class TransferModule: Module {
   private func setMeta(_ tid: String, _ entry: TransferMeta) {
     metaLock.lock()
     meta[tid] = entry
-    saveMeta()
+    let snapshot = meta
     metaLock.unlock()
+    saveMeta(snapshot)
   }
 
   private func removeMeta(_ tid: String) {
     metaLock.lock()
     meta.removeValue(forKey: tid)
-    saveMeta()
+    let snapshot = meta
     metaLock.unlock()
+    saveMeta(snapshot)
   }
 
   static func extractModelName(_ path: String?) -> String? {
