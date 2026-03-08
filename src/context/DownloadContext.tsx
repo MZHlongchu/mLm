@@ -23,6 +23,8 @@ const DownloadContext = createContext<DownloadContextType | undefined>(undefined
 export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress>({});
   const isLoadedRef = useRef(false);
+  const cancelledRef = useRef<Set<string>>(new Set());
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const loadSavedStates = async () => {
@@ -142,6 +144,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (!data.modelName || data.modelName.startsWith('com.inferra.transfer.')) {
         return;
       }
+      cancelledRef.current.add(data.modelName);
+      setTimeout(() => cancelledRef.current.delete(data.modelName), 30000);
       setDownloadProgress(prev => {
         const newProgress = { ...prev };
         delete newProgress[data.modelName];
@@ -154,6 +158,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
       if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+        return;
+      }
+      if (cancelledRef.current.has(data.modelName)) {
         return;
       }
       setDownloadProgress(prev => ({
@@ -186,7 +193,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     if (!isLoadedRef.current) return;
-    const saveStates = async () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
       try {
         if (Object.keys(downloadProgress).length > 0) {
           await AsyncStorage.setItem('download_progress', JSON.stringify(downloadProgress));
@@ -195,8 +203,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       } catch (error) {
       }
-    };
-    saveStates();
+    }, 500);
   }, [downloadProgress]);
 
   return (
