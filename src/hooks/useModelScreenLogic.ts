@@ -58,6 +58,7 @@ export const useModelScreenLogic = (navigation: any, routeParams?: ModelRoutePar
   const [username, setUsername] = useState<string | null>(null);
   
   const buttonScale = useRef(new Animated.Value(1)).current;
+  const prevActiveCount = useRef(0);
   const applyingRemoteIntent = useRef(false);
 
   useEffect(() => {
@@ -377,12 +378,13 @@ export const useModelScreenLogic = (navigation: any, routeParams?: ModelRoutePar
 
   useEffect(() => {
     const activeCount = getActiveDownloadsCount(downloadProgress);
-    if (activeCount > 0) {
+    if (activeCount !== prevActiveCount.current && activeCount > 0) {
       Animated.sequence([
         Animated.timing(buttonScale, { toValue: 1.2, duration: 200, useNativeDriver: true }),
         Animated.timing(buttonScale, { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
     }
+    prevActiveCount.current = activeCount;
   }, [downloadProgress]);
 
   useEffect(() => {
