@@ -82,8 +82,9 @@ export default function PDFGridView({
       transparent={false}
       onRequestClose={onClose}
     >
+      <View style={{ flex: 1, backgroundColor: isDark ? '#1a1a1a' : '#ffffff' }}>
       <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: isDark ? '#1a1a1a' : '#ffffff' }}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
@@ -244,6 +245,7 @@ export default function PDFGridView({
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
