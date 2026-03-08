@@ -103,7 +103,7 @@ const ModelSettingsControls = ({
               Enable Jinja templating for chat formatting. Better compatibility with modern models.
             </Text>
             {!caps.jinja && (
-              <Text style={styles.unsupportedText}>Not available for this engine</Text>
+              <Text style={styles.unsupportedText}>Unsupported on MLX</Text>
             )}
             {(modelSettings.jinja ?? false) !== (defaultSettings.jinja ?? false) && (
               <TouchableOpacity
@@ -147,7 +147,7 @@ const ModelSettingsControls = ({
               Enforce specific grammar rules to ensure generated text follows a particular structure.
             </Text>
             {!caps.grammar && (
-              <Text style={styles.unsupportedText}>Not available for this engine</Text>
+              <Text style={styles.unsupportedText}>Unsupported on MLX</Text>
             )}
             {defaultSettings.grammar !== undefined && isStringDifferent(modelSettings.grammar, defaultSettings.grammar) && (
               <TouchableOpacity

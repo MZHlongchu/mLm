@@ -224,6 +224,7 @@ export default function ModelParametersScreen({ navigation }: Props) {
           modelSettings={settings}
           defaultSettings={DEFAULT_SETTINGS}
           onSettingsChange={handleChange}
+          activeEngine={activeEngine}
           onNProbsDialogOpen={() => {
             setTempNProbs((settings.nProbs ?? 0).toString());
             setShowNProbsDialog(true);
@@ -246,6 +247,7 @@ export default function ModelParametersScreen({ navigation }: Props) {
         modelSettings={settings}
         defaultSettings={DEFAULT_SETTINGS}
         onSettingsChange={handleChange}
+        activeEngine={activeEngine}
         showGrammarDialog={showGrammarDialog}
         setShowGrammarDialog={setShowGrammarDialog}
         showSeedDialog={showSeedDialog}

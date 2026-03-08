@@ -64,7 +64,7 @@ export default function SettingSlider({
             {description}
           </Text>
           {disabled && (
-            <Text style={styles.unsupportedText}>Not available for this engine</Text>
+            <Text style={styles.unsupportedText}>Unsupported on MLX</Text>
           )}
             {!isDefaultValue && !disabled && (
             <TouchableOpacity

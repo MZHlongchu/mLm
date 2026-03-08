@@ -18,6 +18,7 @@ type ModelSettingsAdvancedProps = {
   onNProbsDialogOpen: () => void;
   onSeedDialogOpen: () => void;
   onLogitBiasDialogOpen: () => void;
+  activeEngine?: 'llama' | 'mlx';
 };
 
 const ModelSettingsAdvanced = ({
@@ -27,10 +28,12 @@ const ModelSettingsAdvanced = ({
   onNProbsDialogOpen,
   onSeedDialogOpen,
   onLogitBiasDialogOpen,
+  activeEngine,
 }: ModelSettingsAdvancedProps) => {
   const { theme: currentTheme } = useTheme();
   const themeColors = theme[currentTheme];
   const iconColor = currentTheme === 'dark' ? '#FFFFFF' : themeColors.primary;
+  const isMlx = activeEngine === 'mlx';
 
   return (
     <>
@@ -39,8 +42,9 @@ const ModelSettingsAdvanced = ({
       </View>
 
       <TouchableOpacity 
-        style={[styles.settingItem, styles.settingItemBorder]}
-        onPress={onNProbsDialogOpen}
+        style={[styles.settingItem, styles.settingItemBorder, isMlx && styles.disabledItem]}
+        onPress={isMlx ? undefined : onNProbsDialogOpen}
+        disabled={isMlx}
       >
         <View style={styles.settingLeft}>
           <View style={[styles.iconContainer, { backgroundColor: currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : themeColors.primary + '20' }]}>
@@ -58,6 +62,9 @@ const ModelSettingsAdvanced = ({
             <Text style={[styles.settingDescription, { color: themeColors.secondaryText }]}>
               Show probability scores for alternative words. 0 disables, higher values show more alternatives.
             </Text>
+            {isMlx && (
+              <Text style={styles.unsupportedText}>Unsupported on MLX</Text>
+            )}
             {(modelSettings.nProbs ?? 0) !== (defaultSettings.nProbs ?? 0) && (
               <TouchableOpacity
                 onPress={() => onSettingsChange({ nProbs: defaultSettings.nProbs ?? 0 })}
@@ -73,8 +80,9 @@ const ModelSettingsAdvanced = ({
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={[styles.settingItem, styles.settingItemBorder]}
-        onPress={onSeedDialogOpen}
+        style={[styles.settingItem, styles.settingItemBorder, isMlx && styles.disabledItem]}
+        onPress={isMlx ? undefined : onSeedDialogOpen}
+        disabled={isMlx}
       >
         <View style={styles.settingLeft}>
           <View style={[styles.iconContainer, { backgroundColor: currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : themeColors.primary + '20' }]}>
@@ -92,6 +100,9 @@ const ModelSettingsAdvanced = ({
             <Text style={[styles.settingDescription, { color: themeColors.secondaryText }]}>
               Set random number generator seed for reproducible results. -1 for random seed.
             </Text>
+            {isMlx && (
+              <Text style={styles.unsupportedText}>Unsupported on MLX</Text>
+            )}
             {(modelSettings.seed ?? -1) !== (defaultSettings.seed ?? -1) && (
               <TouchableOpacity
                 onPress={() => onSettingsChange({ seed: defaultSettings.seed ?? -1 })}
@@ -142,8 +153,9 @@ const ModelSettingsAdvanced = ({
       </View>
 
       <TouchableOpacity 
-        style={[styles.settingItem, styles.settingItemBorder]}
-        onPress={onLogitBiasDialogOpen}
+        style={[styles.settingItem, styles.settingItemBorder, isMlx && styles.disabledItem]}
+        onPress={isMlx ? undefined : onLogitBiasDialogOpen}
+        disabled={isMlx}
       >
         <View style={styles.settingLeft}>
           <View style={[styles.iconContainer, { backgroundColor: currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : themeColors.primary + '20' }]}>
@@ -161,6 +173,9 @@ const ModelSettingsAdvanced = ({
             <Text style={[styles.settingDescription, { color: themeColors.secondaryText }]}>
               Influence how likely specific words are to appear in the response.
             </Text>
+            {isMlx && (
+              <Text style={styles.unsupportedText}>Unsupported on MLX</Text>
+            )}
             {(JSON.stringify(modelSettings.logitBias || []) !== JSON.stringify(defaultSettings.logitBias || [])) && (
               <TouchableOpacity
                 onPress={() => onSettingsChange({ logitBias: defaultSettings.logitBias || [] })}
@@ -247,6 +262,15 @@ const styles = StyleSheet.create({
   resetText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  unsupportedText: {
+    fontSize: 11,
+    color: '#FF9500',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  disabledItem: {
+    opacity: 0.5,
   },
 });
 
