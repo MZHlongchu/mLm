@@ -26,7 +26,6 @@ import SupportSection from '../components/settings/SupportSection';
 import ModelSettingsSection, { type GpuConfig } from '../components/settings/ModelSettingsSection';
 import SystemInfoSection from '../components/settings/SystemInfoSection';
 import StorageSection from '../components/settings/StorageSection';
-import { ActivityIndicator as PaperActivityIndicator } from 'react-native-paper';
 import Dialog from '../components/Dialog';
 import * as WebBrowser from 'expo-web-browser';
 import { DEFAULT_SETTINGS } from '../config/llamaConfig';
@@ -123,7 +122,6 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogTitle, setDialogTitle] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
-  const [dialogLoading, setDialogLoading] = useState(false);
   const [dialogPrimaryText, setDialogPrimaryText] = useState<string | undefined>(undefined);
   const [dialogPrimaryPress, setDialogPrimaryPress] = useState<(() => void) | undefined>(undefined);
   const [dialogSecondaryText, setDialogSecondaryText] = useState<string | undefined>(undefined);
@@ -131,7 +129,6 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
 
   const hideDialog = () => {
     setDialogVisible(false);
-    setDialogLoading(false);
   };
 
   interface BtnCfg { label: string; onPress: () => void }
@@ -141,16 +138,14 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     message: string,
     primary?: BtnCfg,
     secondary?: BtnCfg,
-    loading: boolean = false
   ) => {
     setDialogTitle(title);
     setDialogMessage(message);
-    setDialogLoading(loading);
     const autoClose = () => setDialogVisible(false);
-    setDialogPrimaryText(loading ? undefined : (primary?.label ?? 'OK'));
-    setDialogPrimaryPress(loading ? undefined : () => primary ? primary.onPress : autoClose);
-    setDialogSecondaryText(loading ? undefined : secondary?.label);
-    setDialogSecondaryPress(loading ? undefined : (secondary ? () => secondary.onPress : undefined));
+    setDialogPrimaryText(primary?.label ?? 'OK');
+    setDialogPrimaryPress(() => primary ? primary.onPress : autoClose);
+    setDialogSecondaryText(secondary?.label);
+    setDialogSecondaryPress(secondary ? () => secondary.onPress : undefined);
     setDialogVisible(true);
   };
 
@@ -576,7 +571,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     const modelsDir = `${FileSystem.documentDirectory}models`;
     const hfDir = `${FileSystem.documentDirectory}huggingface`;
 
-    showDialog('', '', undefined, undefined, true);
+    setClearingType('models');
 
     try {
       const [modelsSize, hfSize] = await Promise.all([
@@ -586,38 +581,36 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       const totalSize = modelsSize + hfSize;
       const totalSizeText = formatBytes(totalSize);
 
-      hideDialog();
-      setTimeout(() => {
-        showDialog(
-          'Clear All Models',
-          `Are you sure you want to delete all models? This action cannot be undone.\n\nStorage to be freed: ${totalSizeText}`,
-          {
-            label: 'Delete',
-            onPress: async () => {
-              hideDialog();
-              try {
-                setClearingType('models');
-                await modelDownloader.clearAllModels();
-                await modelSettingsService.clearAllSettings();
-                await loadStorageInfo();
-                showDialog('Success', 'All models cleared successfully');
-              } catch (error) {
-                showDialog('Error', 'Failed to clear models');
-              } finally {
-                setClearingType(null);
-              }
-            }
-          },
-          {
-            label: 'Cancel',
-            onPress: () => {
-              hideDialog();
+      setClearingType(null);
+      showDialog(
+        'Clear All Models',
+        `Are you sure you want to delete all models? This action cannot be undone.\n\nStorage to be freed: ${totalSizeText}`,
+        {
+          label: 'Delete',
+          onPress: async () => {
+            hideDialog();
+            try {
+              setClearingType('models');
+              await modelDownloader.clearAllModels();
+              await modelSettingsService.clearAllSettings();
+              await loadStorageInfo();
+              showDialog('Success', 'All models cleared successfully');
+            } catch (error) {
+              showDialog('Error', 'Failed to clear models');
+            } finally {
+              setClearingType(null);
             }
           }
-        );
-      }, 50);
+        },
+        {
+          label: 'Cancel',
+          onPress: () => {
+            hideDialog();
+          }
+        }
+      );
     } catch (error) {
-      hideDialog();
+      setClearingType(null);
       showDialog('Error', 'Failed to clear models');
     }
   };
@@ -889,16 +882,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       />
 
       <Dialog
-        visible={dialogVisible && dialogLoading}
-        onDismiss={undefined}
-      >
-        <View style={styles.dialogLoader}>
-          <PaperActivityIndicator size="large" />
-        </View>
-      </Dialog>
-
-      <Dialog
-        visible={dialogVisible && !dialogLoading}
+        visible={dialogVisible}
         onDismiss={hideDialog}
         title={dialogTitle || undefined}
         description={dialogMessage || undefined}
@@ -949,9 +933,5 @@ const styles = StyleSheet.create({
   debugButtonSubtitle: {
     fontSize: 14,
     marginTop: 2,
-  },
-  dialogLoader: {
-    marginTop: 14,
-    alignItems: 'center',
   },
 }); 
