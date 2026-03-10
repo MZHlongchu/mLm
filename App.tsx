@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { AppState, AppStateStatus, Text, TextInput, LogBox, View, BackHandler, ToastAndroid } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -148,23 +148,6 @@ function Navigation() {
       return true;
     });
 
-    let isMounted = true;
-    
-    const fetchUpdates = async () => {
-      if (__DEV__ || !Updates.isEnabled) return;
-      
-      try {
-        const update = await Updates.checkForUpdateAsync();
-        if (!update.isAvailable || !isMounted) return;
-        
-        await Updates.fetchUpdateAsync();
-      } catch (error) {
-        console.log('update_fetch_error');
-      }
-    };
-
-    const updateTimer = setTimeout(fetchUpdates, 3000);
-
     const timer = setTimeout(() => {
       registerBackgroundFetchAsync().catch(error => {
         // do nothing
@@ -210,8 +193,6 @@ function Navigation() {
     }
 
     return () => {
-      isMounted = false;
-      clearTimeout(updateTimer);
       clearTimeout(timer);
       backSubscription.remove();
       try {
@@ -277,12 +258,32 @@ export default function App() {
     'OpenSans-Bold': require('./assets/fonts/OpenSans-Bold.ttf'),
     'OpenSans-ExtraBold': require('./assets/fonts/OpenSans-ExtraBold.ttf'),
   });
+  const [updateChecked, setUpdateChecked] = useState(false);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    async function checkUpdates() {
+      if (__DEV__ || !Updates.isEnabled) {
+        setUpdateChecked(true);
+        return;
+      }
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+          return;
+        }
+      } catch (_) {}
+      setUpdateChecked(true);
+    }
+    checkUpdates();
+  }, []);
+
+  useEffect(() => {
+    if ((fontsLoaded || fontError) && updateChecked) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, updateChecked]);
 
   useEffect(() => {
     if (fontsLoaded) {
