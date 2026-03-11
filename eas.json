@@ -30,10 +30,10 @@
       "distribution": "store",
       "channel": "production",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       },
       "ios": {
-        "autoIncrement": true,
+        "autoIncrement": false,
         "image": "macos-sequoia-15.6-xcode-26.0"
       }
     }

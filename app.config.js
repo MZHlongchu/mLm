@@ -3,7 +3,7 @@ export default {
     name: "InferrLM",
     slug: "inferrlm",
     owner: "subhajitgorai",
-    version: "0.8.0",
+    version: "0.8.1",
     orientation: "default",
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic",
@@ -23,8 +23,8 @@ export default {
       supportsTablet: true,
       requireFullScreen: false,
       bundleIdentifier: "com.gorai.inferra",
-      buildNumber: "281",
-      runtimeVersion: "0.8.0",
+      buildNumber: "283",
+      runtimeVersion: "0.8.1",
       infoPlist: {
         UIBackgroundModes: [
           "fetch",
@@ -35,6 +35,7 @@ export default {
         NSPhotoLibraryAddUsageDescription: "InferrLM needs permission to save captured photos and generated images to your library.",
         NSLocalNetworkUsageDescription: "InferrLM uses local network access to share your AI chat interface with other devices on your WiFi network, allowing you to access your assistant from browsers on computers, tablets, or other phones.",
         NSBonjourServices: ["_http._tcp"],
+        ITSAppUsesNonExemptEncryption: false,
         UIStatusBarStyle: "UIStatusBarStyleDefault",
         UIViewControllerBasedStatusBarAppearance: false,
         UIGestureRecognizerShouldBegin: false,
@@ -52,14 +53,14 @@ export default {
       scheme: "com.gorai.inferra"
     },
     android: {
-      versionCode: 281,
+      versionCode: 283,
       predictiveBackGestureEnabled: false,
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#660880"
       },
       package: "com.gorai.ragionare",
-      runtimeVersion: "0.8.0",
+      runtimeVersion: "0.8.1",
       googleServicesFile: "./google-services.json",
       edgeToEdgeEnabled: true,
       resizeableActivity: true,

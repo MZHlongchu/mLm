@@ -103,10 +103,9 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   });
   const [showSystemPromptDialog, setShowSystemPromptDialog] = useState(false);
   const [storageInfo, setStorageInfo] = useState({
-    tempSize: '0 B',
     cacheSize: '0 B'
   });
-  const [clearingType, setClearingType] = useState<'cache' | 'temp' | 'models' | null>(null);
+  const [clearingType, setClearingType] = useState<'cache' | 'models' | null>(null);
   const [gpuSettings, setGpuSettings] = useState<GpuSettings>(
     gpuSettingsService.getSettingsSync()
   );
@@ -492,15 +491,14 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
 
   const loadStorageInfo = async () => {
     try {
-      const tempDir = `${FileSystem.documentDirectory}temp`;
       const cacheDir = FileSystem.cacheDirectory || '';
-
-      const tempSize = await getDirectorySize(tempDir);
-      const cacheSize = await getDirectorySize(cacheDir);
-
+      const tempDir = `${FileSystem.documentDirectory}temp`;
+      const [cacheSize, tempSize] = await Promise.all([
+        getDirectorySize(cacheDir),
+        getDirectorySize(tempDir),
+      ]);
       setStorageInfo({
-        tempSize: formatBytes(tempSize),
-        cacheSize: formatBytes(cacheSize)
+        cacheSize: formatBytes(cacheSize + tempSize)
       });
     } catch (error) {
     }
@@ -525,9 +523,11 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const clearCache = async () => {
     try {
       setClearingType('cache');
+      const tempDir = `${FileSystem.documentDirectory}temp`;
       if (FileSystem.cacheDirectory) {
         await clearDirectory(FileSystem.cacheDirectory);
       }
+      await clearDirectory(tempDir);
       await loadStorageInfo();
       showDialog('Success', 'Cache cleared successfully');
     } catch (error) {
@@ -537,19 +537,6 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     }
   };
 
-  const clearTempFiles = async () => {
-    try {
-      setClearingType('temp');
-      const tempDir = `${FileSystem.documentDirectory}temp`;
-      await clearDirectory(tempDir);
-      await loadStorageInfo();
-      showDialog('Success', 'Temporary files cleared successfully');
-    } catch (error) {
-      showDialog('Error', 'Failed to clear temporary files');
-    } finally {
-      setClearingType(null);
-    }
-  };
 
   const clearAllModels = async () => {
     const modelsDir = `${FileSystem.documentDirectory}models`;
@@ -780,7 +767,6 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           storageInfo={storageInfo}
           clearingType={clearingType}
           onClearCache={clearCache}
-          onClearTempFiles={clearTempFiles}
           onClearAllModels={clearAllModels}
         />
 
