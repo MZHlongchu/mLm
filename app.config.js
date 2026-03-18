@@ -3,7 +3,7 @@ export default {
     name: "InferrLM",
     slug: "inferrlm",
     owner: "subhajitgorai",
-    version: "0.8.1",
+    version: "0.8.3",
     orientation: "default",
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic",
@@ -13,7 +13,7 @@ export default {
     newArchEnabled: true,
     updates: {
       enabled: true,
-      checkAutomatically: 'ON_LOAD',
+      checkAutomatically: 'NEVER',
       url: "https://u.expo.dev/a539a082-58a3-4f29-9bb7-107913124e7d"
     },
     assetBundlePatterns: [
@@ -23,8 +23,8 @@ export default {
       supportsTablet: true,
       requireFullScreen: false,
       bundleIdentifier: "com.gorai.inferra",
-      buildNumber: "283",
-      runtimeVersion: "0.8.1",
+      buildNumber: "285",
+      runtimeVersion: "0.8.3",
       infoPlist: {
         UIBackgroundModes: [
           "fetch",
@@ -53,14 +53,14 @@ export default {
       scheme: "com.gorai.inferra"
     },
     android: {
-      versionCode: 283,
+      versionCode: 285,
       predictiveBackGestureEnabled: false,
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#660880"
       },
       package: "com.gorai.ragionare",
-      runtimeVersion: "0.8.1",
+      runtimeVersion: "0.8.3",
       googleServicesFile: "./google-services.json",
       edgeToEdgeEnabled: true,
       resizeableActivity: true,
@@ -97,6 +97,12 @@ export default {
       ]
     },
     extra: {
+      autoUpdate: true,
+      changelog: [
+        "OpenAI-compatible API endpoints (/v1/chat/completions, /v1/models)",
+        "Fixed connection issues with PC clients",
+        "Improved server stability and error handling",
+      ],
       GEMINI_API_KEY: process.env.GEMINI_API_KEY,
       OPENAI_API_KEY: process.env.OPENAI_API_KEY,
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,

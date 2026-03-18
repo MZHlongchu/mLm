@@ -6,7 +6,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import * as Updates from 'expo-updates';
+
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { RemoteModelProvider } from './src/context/RemoteModelContext';
 import { theme } from './src/constants/theme';
@@ -28,6 +28,8 @@ import { PaperProvider, MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 import { DialogProvider } from './src/context/DialogContext';
 import { ShowDialog } from './src/components/ShowDialog';
 import { initializeBindings } from './src/utils/llamaBinding';
+import UpdateDialog from './src/components/UpdateDialog';
+import { updateService } from './src/services/UpdateService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -258,32 +260,27 @@ export default function App() {
     'OpenSans-Bold': require('./assets/fonts/OpenSans-Bold.ttf'),
     'OpenSans-ExtraBold': require('./assets/fonts/OpenSans-ExtraBold.ttf'),
   });
-  const [updateChecked, setUpdateChecked] = useState(false);
+  const [autoUpdated, setAutoUpdated] = useState(false);
 
   useEffect(() => {
-    async function checkUpdates() {
-      if (__DEV__ || !Updates.isEnabled) {
-        setUpdateChecked(true);
-        return;
-      }
-      try {
-        const update = await Updates.checkForUpdateAsync();
-        if (update.isAvailable) {
-          await Updates.fetchUpdateAsync();
-          await Updates.reloadAsync();
+    async function handleAutoUpdate() {
+      const result = await updateService.checkForUpdate();
+      if (result?.manifest && updateService.isAutoUpdate(result.manifest)) {
+        try {
+          await updateService.fetchAndReload();
           return;
-        }
-      } catch (_) {}
-      setUpdateChecked(true);
+        } catch {}
+      }
+      setAutoUpdated(true);
     }
-    checkUpdates();
+    handleAutoUpdate();
   }, []);
 
   useEffect(() => {
-    if ((fontsLoaded || fontError) && updateChecked) {
+    if ((fontsLoaded || fontError) && autoUpdated) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError, updateChecked]);
+  }, [fontsLoaded, fontError, autoUpdated]);
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -321,6 +318,7 @@ export default function App() {
                   <DialogProvider>
                     <Navigation />
                   </DialogProvider>
+                  <UpdateDialog />
                 </GestureHandlerRootView>
               </RemoteModelProvider>
             </DownloadProvider>

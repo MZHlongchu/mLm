@@ -30,6 +30,7 @@ import { getHTTPStatusText } from './tcp/http/httpStatus';
 import { handleCopyRequest, handleTagsRequest, handlePullRequest, handleDeleteRequest, handlePsRequest } from './tcp/http/modelOperations';
 import { sendChunkedResponseStart, writeChunk, endChunkedResponse } from './tcp/http/responseUtils';
 import { getFileSize, findStoredModel } from './tcp/http/modelUtils';
+import { handleOpenAIChatCompletions, handleOpenAIModels } from './tcp/http/openaiHandler';
 
 interface ServerStatus {
   isRunning: boolean;
@@ -41,6 +42,7 @@ interface ServerStatus {
 type ConnectionState = {
   isHTTP: boolean;
   buffer: string;
+  continueSent: boolean;
 };
 
 export class TCPServer {
@@ -181,7 +183,7 @@ export class TCPServer {
   private handleConnection(socket: any): void {
     const peerId = this.generatePeerId();
     this.clients.set(peerId, socket);
-    const state: ConnectionState = { isHTTP: false, buffer: '' };
+    const state: ConnectionState = { isHTTP: false, buffer: '', continueSent: false };
     this.connectionStates.set(peerId, state);
 
     logger.info(`tcp_client_connected peer:${peerId} total:${this.clients.size}`, 'server');
@@ -212,7 +214,11 @@ export class TCPServer {
     const text = chunk.toString('utf8');
 
     if (state.isHTTP || this.isHTTPRequest(text)) {
-      void this.handleHTTPData(peerId, socket, text);
+      this.handleHTTPData(peerId, socket, text).catch((err) => {
+        const msg = err instanceof Error ? err.message : 'unknown';
+        logger.error(`http_data_error peer:${peerId} ${msg}`, 'http');
+        try { socket.destroy(); } catch {}
+      });
       return;
     }
   }
@@ -345,6 +351,18 @@ export class TCPServer {
       const parsed = parseHTTPBuffer(state.buffer);
       
       if (parsed.needsMoreData) {
+        if (!state.continueSent) {
+          const sepIdx = state.buffer.indexOf('\r\n\r\n');
+          if (sepIdx !== -1) {
+            const headerBlock = state.buffer.slice(0, sepIdx).toLowerCase();
+            if (headerBlock.includes('expect:') && headerBlock.includes('100-continue')) {
+              try {
+                socket.write('HTTP/1.1 100 Continue\r\n\r\n');
+              } catch {}
+              state.continueSent = true;
+            }
+          }
+        }
         return;
       }
 
@@ -353,6 +371,7 @@ export class TCPServer {
       }
 
       state.buffer = parsed.remainingBuffer;
+      state.continueSent = false;
 
       try {
         await this.handleHTTPRequest(peerId, socket, parsed.request.requestLine, parsed.request.headers, parsed.request.body);
@@ -389,7 +408,7 @@ export class TCPServer {
     if (method === 'OPTIONS') {
       this.sendHTTPResponse(socket, 204, {
         'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
       }, '');
       logger.logWebRequest(method, path, 204);
       return;
@@ -525,6 +544,29 @@ export class TCPServer {
       return;
     }
 
+    if (method === 'POST' && path === '/v1/chat/completions') {
+      await handleOpenAIChatCompletions(
+        body,
+        socket,
+        method,
+        path,
+        this.ensureModelLoaded.bind(this),
+        this.parseHttpError.bind(this),
+        this.sendJSONResponse.bind(this)
+      );
+      return;
+    }
+
+    if (method === 'GET' && path === '/v1/models') {
+      await handleOpenAIModels(
+        socket,
+        method,
+        path,
+        this.sendJSONResponse.bind(this)
+      );
+      return;
+    }
+
     this.sendJSONResponse(socket, 404, { error: 'not_found' });
     logger.logWebRequest(method, path, 404);
   }
@@ -564,6 +606,7 @@ export class TCPServer {
 
 
   private sendHTTPResponse(socket: any, status: number, headers: Record<string, string>, body: string): void {
+    if (socket.destroyed) return;
     const statusText = getHTTPStatusText(status);
     const responseHeaders: Record<string, string> = {
       'Content-Length': Buffer.byteLength(body, 'utf8').toString(),
