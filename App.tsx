@@ -271,8 +271,6 @@ export default function App() {
       try {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
-          setUpdateChecked(true);
-          setIsUpdating(true);
           await Updates.fetchUpdateAsync();
           await Updates.reloadAsync();
           return;
