@@ -23,7 +23,7 @@ export default {
       supportsTablet: true,
       requireFullScreen: false,
       bundleIdentifier: "com.gorai.inferra",
-      buildNumber: "285",
+      buildNumber: "286",
       runtimeVersion: "0.8.3",
       infoPlist: {
         UIBackgroundModes: [
@@ -53,7 +53,7 @@ export default {
       scheme: "com.gorai.inferra"
     },
     android: {
-      versionCode: 285,
+      versionCode: 286,
       predictiveBackGestureEnabled: false,
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
@@ -97,7 +97,7 @@ export default {
       ]
     },
     extra: {
-      autoUpdate: true,
+      autoUpdate: false,
       changelog: [
         "OpenAI-compatible API endpoints (/v1/chat/completions, /v1/models)",
         "Fixed connection issues with PC clients",
