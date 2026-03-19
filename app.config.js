@@ -103,6 +103,10 @@ export default {
         "Fixed connection issues with PC clients",
         "Improved server stability and error handling",
       ],
+      GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+      HUGGINGFACE_TOKEN: process.env.HUGGINGFACE_TOKEN,
       eas: {
         projectId: "a539a082-58a3-4f29-9bb7-107913124e7d"
       },
