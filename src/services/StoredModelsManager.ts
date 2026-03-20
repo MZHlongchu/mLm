@@ -7,7 +7,7 @@ import { StoredModel } from './ModelDownloaderTypes';
 import { detectVisionCapabilities } from '../utils/multimodalHelpers';
 import { ModelType, ModelFormat } from '../types/models';
 import { mlxStorageManager } from './MLXStorageManager';
-import { ModelManager } from 'react-native-nitro-mlx';
+import { ModelManager } from '@inferrlm/react-native-mlx';
 
 export class StoredModelsManager extends EventEmitter {
   private fileManager: FileManager;

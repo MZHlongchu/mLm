@@ -1,9 +1,11 @@
+const APP_ENV = process.env.APP_ENV;
+
 export default {
   expo: {
     name: "InferrLM",
     slug: "inferrlm",
     owner: "subhajitgorai",
-    version: "0.8.4",
+    version: "0.8.5",
     orientation: "default",
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic",
@@ -14,7 +16,14 @@ export default {
     updates: {
       enabled: true,
       checkAutomatically: 'NEVER',
-      url: "https://u.expo.dev/a539a082-58a3-4f29-9bb7-107913124e7d"
+      url: "https://u.expo.dev/a539a082-58a3-4f29-9bb7-107913124e7d",
+      ...(APP_ENV === 'production' || APP_ENV === 'preview' ? {
+        codeSigningCertificate: "./keys/certificate.pem",
+        codeSigningMetadata: {
+          keyid: "main",
+          alg: "rsa-v1_5-sha256",
+        },
+      } : {}),
     },
     assetBundlePatterns: [
       "**/*"
@@ -22,9 +31,9 @@ export default {
     ios: {
       supportsTablet: true,
       requireFullScreen: false,
-      bundleIdentifier: "com.gorai.inferra",
-      buildNumber: "288",
-      runtimeVersion: "0.8.4",
+      bundleIdentifier: APP_ENV === 'development' ? "com.gorai.inferra.dev" : "com.gorai.inferra",
+      buildNumber: "289",
+      runtimeVersion: "0.8.5",
       infoPlist: {
         UIBackgroundModes: [
           "fetch",
@@ -50,17 +59,17 @@ export default {
       entitlements: {
         "com.apple.developer.applesignin": ["Default"]
       },
-      scheme: "com.gorai.inferra"
+      scheme: APP_ENV === 'development' ? "com.gorai.inferra.dev" : "com.gorai.inferra"
     },
     android: {
-      versionCode: 288,
+      versionCode: 289,
       predictiveBackGestureEnabled: false,
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#660880"
       },
       package: "com.gorai.ragionare",
-      runtimeVersion: "0.8.4",
+      runtimeVersion: "0.8.5",
       googleServicesFile: "./google-services.json",
       edgeToEdgeEnabled: true,
       resizeableActivity: true,
@@ -99,9 +108,7 @@ export default {
     extra: {
       autoUpdate: false,
       changelog: [
-        "OpenAI-compatible API endpoints (/v1/chat/completions, /v1/models)",
-        "Fixed connection issues with PC clients",
-        "Improved server stability and error handling",
+        "Updated server homepage documentation",
       ],
       GEMINI_API_KEY: process.env.GEMINI_API_KEY,
       OPENAI_API_KEY: process.env.OPENAI_API_KEY,
