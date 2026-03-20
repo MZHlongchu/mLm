@@ -32,11 +32,6 @@ Every request that generates text includes a `model` string that determines whic
 |-------------|----------------|-------|
 | Stored model name (e.g. `llama-3.2-1b.gguf`) | Local GGUF running on-device | Download the GGUF via the InferrLM app first. |
 | `apple-foundation` | Apple Intelligence Foundation model | iOS only. Enable in app settings and verify via `GET /api/models/apple-foundation`. |
-| `gemini` | Google Gemini via your API key | Add your Gemini API key in app settings and enable remote models. |
-| `chatgpt` | OpenAI ChatGPT / GPT-4o | Add your OpenAI API key in app settings and enable remote models. |
-| `claude` | Anthropic Claude | Add your Anthropic API key in app settings and enable remote models. |
-
-Remote providers use the same NDJSON streaming format as local models. If remote models are disabled or an API key has not been saved, the server responds with `remote_models_disabled` or `api_key_missing`. API keys and remote model settings are configured in the InferrLM app settings — they cannot be set via the REST API.
 
 ---
 
@@ -44,7 +39,7 @@ Remote providers use the same NDJSON streaming format as local models. If remote
 
 ### POST /api/chat
 
-Stream or complete a chat with full conversation history. Accepts local GGUF model names, `apple-foundation`, or remote provider identifiers.
+Stream or complete a chat with full conversation history. Accepts local GGUF model names or `apple-foundation`.
 
 **Request Body:**
 ```json
@@ -672,118 +667,6 @@ curl -X POST http://YOUR_DEVICE_IP:8889/api/models/apple-foundation
 
 ---
 
-### GET /api/models/remote
-
-Get the status of all configured remote model providers and whether remote models are enabled.
-
-**Response:**
-```json
-{
-  "enabled": true,
-  "providers": [
-    {
-      "provider": "gemini",
-      "configured": true,
-      "model": "gemini-1.5-pro",
-      "usingDefault": false
-    },
-    {
-      "provider": "chatgpt",
-      "configured": false,
-      "model": null,
-      "usingDefault": false
-    },
-    {
-      "provider": "claude",
-      "configured": false,
-      "model": null,
-      "usingDefault": false
-    }
-  ],
-  "message": "Remote models are enabled."
-}
-```
-
-**Example:**
-```bash
-curl http://YOUR_DEVICE_IP:8889/api/models/remote
-```
-
----
-
-### GET /api/models/remote/:provider
-
-Get the status of a single remote provider (`gemini`, `chatgpt`, or `claude`).
-
-**Response:**
-```json
-{
-  "enabled": true,
-  "provider": {
-    "provider": "gemini",
-    "configured": true,
-    "model": "gemini-1.5-pro",
-    "usingDefault": false
-  },
-  "message": "Remote models are enabled."
-}
-```
-
-**Example:**
-```bash
-curl http://YOUR_DEVICE_IP:8889/api/models/remote/gemini
-```
-
----
-
-### POST /api/models/remote
-
-Check whether a remote provider has an API key configured and is ready to accept requests. This does not configure the provider — API keys are set in the InferrLM app settings.
-
-**Request Body:**
-```json
-{
-  "provider": "gemini"
-}
-```
-
-**Response (ready):**
-```json
-{
-  "status": "ready",
-  "provider": {
-    "provider": "gemini",
-    "configured": true,
-    "model": "gemini-1.5-pro",
-    "usingDefault": false
-  }
-}
-```
-
-**Error responses:**
-- `409` — `remote_models_disabled`: enable remote models in app settings
-- `422` — `api_key_missing`: add the API key for this provider in app settings
-
-**Example:**
-```bash
-curl -X POST http://YOUR_DEVICE_IP:8889/api/models/remote \
-  -H "Content-Type: application/json" \
-  -d '{"provider": "gemini"}'
-```
-
----
-
-### POST /api/models/remote/:provider
-
-Same as `POST /api/models/remote` but the provider is specified in the path.
-
-**Example:**
-```bash
-curl -X POST http://YOUR_DEVICE_IP:8889/api/models/remote/claude
-```
-
----
-
 ### GET /api/version
 
 Get the current app version.
@@ -1075,7 +958,6 @@ All endpoints return standard HTTP status codes with a JSON error body.
 - The server is designed for local network use only
 - No authentication is required (secured by network isolation)
 - CORS is enabled for all origins
-- API keys for remote providers are stored securely on the device and are never returned by any endpoint
 - Consider a VPN or firewall before exposing the server beyond your local network
 
 ---

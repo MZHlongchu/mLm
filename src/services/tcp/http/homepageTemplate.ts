@@ -215,14 +215,13 @@ data: [DONE]</pre>
           <span class="method get">GET</span>
           <span class="endpoint-path">/v1/models</span>
         </div>
-        <p class="endpoint-desc">List available models in OpenAI format. Includes local GGUF models, Apple Foundation, and configured remote providers.</p>
+        <p class="endpoint-desc">List available models in OpenAI format. Includes local GGUF models and Apple Foundation.</p>
         <div class="code-label">Response:</div>
         <pre class="code-block">{
   "object": "list",
   "data": [
     {"id": "llama-3.2-1b.gguf", "object": "model", "owned_by": "local"},
-    {"id": "apple-foundation", "object": "model", "owned_by": "apple"},
-    {"id": "gemini", "object": "model", "owned_by": "remote"}
+    {"id": "apple-foundation", "object": "model", "owned_by": "apple"}
   ]
 }</pre>
       </div>
@@ -236,10 +235,10 @@ data: [DONE]</pre>
           <span class="method post">POST</span>
           <span class="endpoint-path">/api/chat</span>
         </div>
-        <p class="endpoint-desc">Stream chat completions with conversation history. Use local GGUF names, <code>apple-foundation</code>, or remote provider identifiers in the <code>model</code> field.</p>
+        <p class="endpoint-desc">Stream chat completions with conversation history. Use local GGUF names or <code>apple-foundation</code> in the <code>model</code> field.</p>
         <div class="code-label">Request:</div>
         <pre class="code-block">{
-  "model": "gemini",
+  "model": "llama-3.2-1b.gguf",
   "messages": [
     {"role": "system", "content": "You are a helpful assistant"},
     {"role": "user", "content": "Hello!"}
@@ -258,7 +257,7 @@ data: [DONE]</pre>
           <span class="method post">POST</span>
           <span class="endpoint-path">/api/generate</span>
         </div>
-        <p class="endpoint-desc">Generate completion from a prompt without conversation context using local, Apple Foundation, or remote providers.</p>
+        <p class="endpoint-desc">Generate completion from a prompt without conversation context using local or Apple Foundation models.</p>
         <div class="code-label">Request:</div>
         <pre class="code-block">{
   "model": "apple-foundation",
@@ -478,44 +477,6 @@ data: [DONE]</pre>
         <pre class="code-block">501 apple_foundation_unavailable — device does not support Apple Intelligence
 428 requirements_not_met — device needs to be updated
 409 apple_foundation_disabled — enable in app settings first</pre>
-      </div>
-
-      <div class="endpoint-card">
-        <div class="endpoint-header">
-          <span class="method get">GET</span>
-          <span class="endpoint-path">/api/models/remote</span>
-        </div>
-        <p class="endpoint-desc">Get status of all configured remote model providers and whether remote models are enabled. Also supports <code>GET /api/models/remote/:provider</code> for a single provider.</p>
-        <div class="code-label">Response:</div>
-        <pre class="code-block">{
-  "enabled": true,
-  "providers": [
-    {"provider": "gemini", "configured": true, "model": "gemini-1.5-pro", "usingDefault": false},
-    {"provider": "chatgpt", "configured": false, "model": null, "usingDefault": false},
-    {"provider": "claude", "configured": false, "model": null, "usingDefault": false}
-  ],
-  "message": "Remote models are enabled."
-}</pre>
-      </div>
-
-      <div class="endpoint-card">
-        <div class="endpoint-header">
-          <span class="method post">POST</span>
-          <span class="endpoint-path">/api/models/remote</span>
-        </div>
-        <p class="endpoint-desc">Check whether a remote provider is configured and ready to use. API keys are set in the app settings — not via this endpoint. Remote models are used by passing the provider name as <code>model</code> in <code>/api/chat</code> or <code>/api/generate</code>. Also supports <code>POST /api/models/remote/:provider</code>.</p>
-        <div class="code-label">Request:</div>
-        <pre class="code-block">{
-  "provider": "gemini"
-}</pre>
-        <div class="code-label">Response (ready):</div>
-        <pre class="code-block">{
-  "status": "ready",
-  "provider": {"provider": "gemini", "configured": true, "model": "gemini-1.5-pro", "usingDefault": false}
-}</pre>
-        <div class="code-label">Error responses:</div>
-        <pre class="code-block">409 remote_models_disabled — enable remote models in app settings
-422 api_key_missing — add API key for this provider in app settings</pre>
       </div>
 
       <div class="endpoint-card">
