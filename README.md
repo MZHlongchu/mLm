@@ -22,7 +22,7 @@ If you want to support me and the development of this project, you can donate to
 
 ### Core Inference
 - Local inference through llama.cpp with support for GGUF models on both Android and iOS.
-- Apple Silicon MLX inference (iOS only) via `react-native-nitro-mlx` for optimized on-device performance on Apple Silicon devices.
+- Apple Silicon MLX inference (iOS only).
 - Seamless integration with cloud-based models from OpenAI, Gemini, and Anthropic. You need your own API keys and an InferrLM registered account for remote models. Using remote models is optional.
 - Customizable base URLs for OpenAI-compatible providers like OpenRouter, Groq, Ollama, LM Studio, Together AI. This allows you to access alternative API endpoints.
 - Apple Foundation model support (iOS only) for Apple Intelligence supported devices.
@@ -164,7 +164,7 @@ Read our [Contributing Guide](docs/CONTRIBUTING.md) for detailed contribution gu
 
 - [llama.cpp](https://github.com/ggerganov/llama.cpp) - The underlying engine for running local GGUF models on both Android and iOS.
 - [inferrlm-llama.rn](https://github.com/sbhjt-gr/inferra-llama.rn) - The customized React Native adapter which provides the bridge for llama.cpp. Originally forked and self-hosted from [llama.rn](https://github.com/mybigday/llama.rn) for updating llama.cpp more frequently.
-- [react-native-nitro-mlx](https://github.com/sbhjt-gr/react-native-nitro-mlx) - Apple Silicon MLX inference engine for iOS, providing optimized on-device performance via the Nitro Modules bridge.
+- [@inferrlm/react-native-mlx](https://github.com/sbhjt-gr/react-native-nitro-mlx) - Apple Silicon MLX inference engine for iOS, providing optimized on-device performance via the Nitro Modules bridge forked and maintained from [react-native-nitro-mlx](https://github.com/corasan/react-native-nitro-mlx)
 - [react-native-nitro-markdown](https://github.com/sbhjt-gr/react-native-nitro-markdown) - Native C++ markdown renderer for React Native, used for chat message rendering.
 - [react-native-rag](https://github.com/software-mansion-labs/react-native-rag) + [@langchain/textsplitters](https://github.com/langchain-ai/langchainjs) - RAG implementation for React Native that powers the document retrieval and ingestion features using LangChain.
 - [react-native-ai](https://github.com/callstackincubator/ai) - Adaptor that provides Apple Foundation bridge from Swift to JavaScript.

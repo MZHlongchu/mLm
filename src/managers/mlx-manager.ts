@@ -1,4 +1,4 @@
-import { LLM } from 'react-native-nitro-mlx';
+import { LLM } from '@inferrlm/react-native-mlx';
 import { EngineCaps, GenOpts, InferenceManager, Msg } from './inference-manager';
 import { fs as FileSystem } from '../services/fs';
 

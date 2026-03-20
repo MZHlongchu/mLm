@@ -6,7 +6,7 @@ import { huggingFaceService, HFModel, HFModelDetails } from '../services/Hugging
 import { modelDownloader } from '../services/ModelDownloader';
 import { DownloadableModel } from '../components/model/DownloadableModelItem';
 import { ModelFormat } from '../types/models';
-import { ModelManager } from 'react-native-nitro-mlx';
+import { ModelManager } from '@inferrlm/react-native-mlx';
 import { fs as FileSystem } from '../services/fs';
 
 export const useUnifiedModelList = (
