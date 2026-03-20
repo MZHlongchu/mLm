@@ -1,3 +1,5 @@
+const isDev = process.env.APP_ENV === 'development';
+
 export default {
   expo: {
     name: "InferrLM",
@@ -27,7 +29,7 @@ export default {
     ios: {
       supportsTablet: true,
       requireFullScreen: false,
-      bundleIdentifier: "com.gorai.inferra",
+      bundleIdentifier: isDev ? "com.gorai.inferra.dev" : "com.gorai.inferra",
       buildNumber: "288",
       runtimeVersion: "0.8.4",
       infoPlist: {
@@ -55,7 +57,7 @@ export default {
       entitlements: {
         "com.apple.developer.applesignin": ["Default"]
       },
-      scheme: "com.gorai.inferra"
+      scheme: isDev ? "com.gorai.inferra.dev" : "com.gorai.inferra"
     },
     android: {
       versionCode: 288,
