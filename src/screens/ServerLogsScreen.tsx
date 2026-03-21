@@ -172,7 +172,7 @@ export default function ServerLogsScreen() {
       const prefix = i < entries.length - 1 ? '  |  ' : '  |  ';
       const value = Array.isArray(val) ? val.join(', ') : String(val);
       return (
-        <Text key={key} style={s.mono}>
+        <Text key={key} selectable style={s.mono}>
           <Text style={s.dim}>{prefix}</Text>
           <Text style={s.paramKey}>{key}</Text>
           <Text style={s.dim}>=</Text>
@@ -188,7 +188,7 @@ export default function ServerLogsScreen() {
       const prefix = '  |  ';
       return (
         <View key={`${msg.role}-${i}`}>
-          <Text style={s.mono}>
+          <Text selectable style={s.mono}>
             <Text style={s.dim}>{prefix}</Text>
             <Text style={{ color: roleColor }}>{msg.role}</Text>
             <Text style={s.dim}>: </Text>
@@ -213,7 +213,7 @@ export default function ServerLogsScreen() {
         activeOpacity={0.8}
         onPress={() => toggleExpand(log.id)}
       >
-        <Text style={s.mono}>
+        <Text selectable style={s.mono}>
           <Text style={s.ts}>[{log.timestamp}]</Text>
           <Text style={{ color: statusColor }}>{` [${status}]`}</Text>
           <Text style={s.dim}>{` ${arrow} `}</Text>
@@ -226,7 +226,7 @@ export default function ServerLogsScreen() {
         {expanded && (
           <View style={s.details}>
             {meta.endpoint && (
-              <Text style={s.mono}>
+              <Text selectable style={s.mono}>
                 <Text style={s.dim}>{'  |-- '}</Text>
                 <Text style={s.label}>endpoint </Text>
                 <Text style={s.text}>{meta.endpoint}</Text>
@@ -234,7 +234,7 @@ export default function ServerLogsScreen() {
             )}
 
             {meta.status != null && (
-              <Text style={s.mono}>
+              <Text selectable style={s.mono}>
                 <Text style={s.dim}>{'  |-- '}</Text>
                 <Text style={s.label}>status </Text>
                 <Text style={[s.text, { color: meta.status < 400 ? '#52D274' : '#FF5C5C' }]}>{meta.status}</Text>
@@ -243,7 +243,7 @@ export default function ServerLogsScreen() {
 
             {meta.params && Object.keys(meta.params).length > 0 && (
               <View>
-                <Text style={s.mono}>
+                <Text selectable style={s.mono}>
                   <Text style={s.dim}>{'  |-- '}</Text>
                   <Text style={s.label}>params</Text>
                 </Text>
@@ -253,7 +253,7 @@ export default function ServerLogsScreen() {
 
             {meta.messages && meta.messages.length > 0 && (
               <View>
-                <Text style={s.mono}>
+                <Text selectable style={s.mono}>
                   <Text style={s.dim}>{'  |-- '}</Text>
                   <Text style={s.label}>messages ({meta.messages.length})</Text>
                 </Text>
@@ -263,11 +263,11 @@ export default function ServerLogsScreen() {
 
             {meta.response && (
               <View>
-                <Text style={s.mono}>
+                <Text selectable style={s.mono}>
                   <Text style={s.dim}>{'  `-- '}</Text>
                   <Text style={s.label}>response </Text>
                 </Text>
-                <Text style={[s.mono, s.resp]}>{'      ' + truncate(maskSensitiveData(meta.response), 1000)}</Text>
+                <Text selectable style={[s.mono, s.resp]}>{'      ' + truncate(maskSensitiveData(meta.response), 1000)}</Text>
               </View>
             )}
           </View>
@@ -357,7 +357,7 @@ export default function ServerLogsScreen() {
             }
 
             return (
-              <Text key={log.id} style={s.mono}>
+              <Text key={log.id} selectable style={s.mono}>
                 <Text style={s.ts}>[{log.timestamp}]</Text>
                 <Text style={[s.level, { color: getLevelColor(log.level) }]}>{` [${log.level}]`}</Text>
                 {log.category && <Text style={s.cat}>{` [${log.category}]`}</Text>}
