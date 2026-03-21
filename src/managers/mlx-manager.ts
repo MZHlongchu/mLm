@@ -204,6 +204,8 @@ class MlxManager implements InferenceManager {
       throw new Error('engine_not_ready');
     }
     
+    LLM.clearHistory();
+
     const lastMessage = messages[messages.length - 1];
     const prompt = typeof lastMessage.content === 'string' ? lastMessage.content : '';
     console.log('mlx_gen_prompt', { promptLength: prompt.length, role: lastMessage.role });
