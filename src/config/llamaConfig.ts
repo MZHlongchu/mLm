@@ -1,7 +1,7 @@
 import { ModelSettings } from '../services/ModelSettingsService';
 import { Platform } from 'react-native';
 export const DEFAULT_SETTINGS: ModelSettings = {
-  maxTokens: 1200,
+  maxTokens: 4096,
   temperature: 0.7,
   topK: 40,
   topP: 0.9,

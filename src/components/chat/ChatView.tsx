@@ -640,6 +640,18 @@ export default function ChatView({
                       TTFT: {formatTime(stats.firstTokenTime)}
                     </Text>
                   </View>
+                ) : isCurrentlyStreaming ? (
+                  <View style={styles.statItem}>
+                    <MaterialCommunityIcons 
+                      name="flash" 
+                      size={12} 
+                      color={themeColors.secondaryText}
+                      style={styles.statIcon}
+                    />
+                    <Text style={[styles.statsText, { color: themeColors.secondaryText }]}> 
+                      TTFT: --
+                    </Text>
+                  </View>
                 ) : null}
                 {stats?.avgTokenTime && stats.avgTokenTime > 0 ? (
                   <View style={[styles.statItem, { marginLeft: 8 }]}>
@@ -651,6 +663,18 @@ export default function ChatView({
                     />
                     <Text style={[styles.statsText, { color: themeColors.secondaryText }]}> 
                       Avg/tok: {formatTime(stats.avgTokenTime)}
+                    </Text>
+                  </View>
+                ) : isCurrentlyStreaming ? (
+                  <View style={[styles.statItem, { marginLeft: 8 }]}>
+                    <MaterialCommunityIcons 
+                      name="timer-outline" 
+                      size={12} 
+                      color={themeColors.secondaryText}
+                      style={styles.statIcon}
+                    />
+                    <Text style={[styles.statsText, { color: themeColors.secondaryText }]}> 
+                      Avg/tok: --
                     </Text>
                   </View>
                 ) : null}
@@ -776,7 +800,7 @@ export default function ChatView({
         data={[...messages].reverse()}
         renderItem={renderMessage}
         keyExtractor={(_item: Message, idx: number) => `msg-${idx}`}
-        extraData={`${chatId}-${streamingStats?.tokens}-${streamingStats?.firstTokenTime}-${streamingStats?.avgTokenTime}`}
+        extraData={chatId}
         contentContainerStyle={styles.messageList}
         inverted={true}
         maintainVisibleContentPosition={
