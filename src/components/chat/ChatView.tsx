@@ -776,7 +776,7 @@ export default function ChatView({
         data={[...messages].reverse()}
         renderItem={renderMessage}
         keyExtractor={(_item: Message, idx: number) => `msg-${idx}`}
-        extraData={chatId}
+        extraData={`${chatId}-${streamingStats?.tokens}-${streamingStats?.firstTokenTime}-${streamingStats?.avgTokenTime}`}
         contentContainerStyle={styles.messageList}
         inverted={true}
         maintainVisibleContentPosition={
