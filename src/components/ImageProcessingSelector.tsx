@@ -55,9 +55,9 @@ export default function ImageProcessingSelector({
 
   useEffect(() => {
     if (onToggleRag) {
-      onToggleRag(ragEnabled);
+      onToggleRag(false);
     }
-  }, [onToggleRag, ragEnabled]);
+  }, [onToggleRag]);
 
   const loadStoredModels = async () => {
     try {

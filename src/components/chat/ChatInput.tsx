@@ -101,7 +101,7 @@ export default function ChatInput({
   const [pendingMultimodalAction, setPendingMultimodalAction] = useState<'camera' | 'file' | null>(null);
   const [pendingFileForMultimodal, setPendingFileForMultimodal] = useState<{uri: string, name?: string} | null>(null);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
-  const [useRagForUpload, setUseRagForUpload] = useState(true);
+  const [useRagForUpload, setUseRagForUpload] = useState(false);
   
   const inputRef = useRef<TextInput>(null);
   const attachmentMenuAnim = useRef(new Animated.Value(0)).current;
@@ -189,24 +189,9 @@ export default function ChatInput({
     }
   }, [showAttachmentMenu]);
 
-  const ensureRagToggleDefault = useCallback(async () => {
-    if (!ragEnabledForCurrentModel) {
-      setUseRagForUpload(false);
-      return;
-    }
-    if (ragToggleDisabled) {
-      setUseRagForUpload(true);
-      return;
-    }
-    try {
-      const enabled = await RAGService.isEnabled();
-      if (!enabled) {
-        await RAGService.setEnabled(true);
-      }
-    } catch (error) {
-    }
-    setUseRagForUpload(true);
-  }, [ragEnabledForCurrentModel, ragToggleDisabled]);
+  const ensureRagToggleDefault = useCallback(() => {
+    setUseRagForUpload(false);
+  }, []);
 
   useEffect(() => {
     ensureRagToggleDefault();

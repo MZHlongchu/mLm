@@ -67,13 +67,9 @@ export default function PDFGridView({
 
   useEffect(() => {
     if (visible) {
-      if (ragEnabled) {
-        onToggleRag(true);
-      } else {
-        onToggleRag(false);
-      }
+      onToggleRag(false);
     }
-  }, [visible, onToggleRag, ragEnabled]);
+  }, [visible, onToggleRag]);
 
   return (
     <Modal

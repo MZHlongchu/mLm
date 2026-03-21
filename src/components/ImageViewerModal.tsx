@@ -62,13 +62,9 @@ export default function ImageViewerModal({
 
   useEffect(() => {
     if (visible) {
-      if (ragEnabled) {
-        onToggleRag(true);
-      } else {
-        onToggleRag(false);
-      }
+      onToggleRag(false);
     }
-  }, [visible, onToggleRag, ragEnabled]);
+  }, [visible, onToggleRag]);
 
   const handleSend = async () => {
     if ((!onUpload && !onImageUpload) || !imagePath || isProcessing || !processingMode) return;

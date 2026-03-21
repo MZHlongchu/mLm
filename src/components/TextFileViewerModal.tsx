@@ -86,11 +86,7 @@ export default function TextFileViewerModal({
 
   useEffect(() => {
     if (visible) {
-      if (ragEnabled) {
-        onToggleRag(true);
-      } else {
-        onToggleRag(false);
-      }
+      onToggleRag(false);
       setLoading(true);
       setError(null);
       setFileContent('');
