@@ -7,7 +7,7 @@ export const DEFAULT_SETTINGS: ModelSettings = {
   topP: 0.9,
   minP: 0.05,
   stopWords: ['<|end|>', '<end_of_turn>', '<|im_end|>', '<|endoftext|>', '<end_of_utterance>'],
-  systemPrompt: 'You are a helpful, honest, and safe AI assistant. Maintain a neutral and professional tone while responding to user queries.',
+  systemPrompt: '',
   jinja: true,
   grammar: '',
   nProbs: 0,
