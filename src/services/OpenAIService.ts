@@ -111,11 +111,27 @@ export class OpenAIService {
 
       if (parsed.type === 'file_upload' && parsed.metadata?.remoteFileUri) {
         try {
-          const text = await FileSystem.readAsStringAsync(parsed.metadata.remoteFileUri);
+          const base64 = await FileSystem.readAsStringAsync(
+            parsed.metadata.remoteFileUri,
+            { encoding: FileSystem.EncodingType.Base64 }
+          );
           const fileName = parsed.fileName || 'document';
+          const mimeType = parsed.metadata.mimeType || 'application/octet-stream';
           return {
             role: message.role,
-            content: `--- ${fileName} ---\n${text}\n---\n\n${parsed.userContent || `File uploaded: ${fileName}`}`,
+            content: [
+              {
+                type: 'file',
+                file: {
+                  filename: fileName,
+                  file_data: `data:${mimeType};base64,${base64}`,
+                },
+              },
+              {
+                type: 'text',
+                text: parsed.userContent || `File uploaded: ${fileName}`,
+              },
+            ],
           };
         } catch {
           return {
