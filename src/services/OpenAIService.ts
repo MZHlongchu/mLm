@@ -113,9 +113,12 @@ export class OpenAIService {
         const fileName = parsed.fileName || 'document';
         const mimeType = parsed.metadata.mimeType || 'application/octet-stream';
         const userContent = parsed.userContent || `File uploaded: ${fileName}`;
-        const isPdf = mimeType === 'application/pdf';
+        const ext = fileName.toLowerCase().split('.').pop() || '';
+        const binaryExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+          'jpg', 'jpeg', 'png', 'gif', 'webp'];
+        const isBinary = binaryExts.includes(ext);
 
-        if (isPdf) {
+        if (isBinary) {
           try {
             const base64 = await FileSystem.readAsStringAsync(
               parsed.metadata.remoteFileUri,
