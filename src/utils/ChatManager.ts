@@ -102,7 +102,7 @@ class ChatManager {
 
   getRootChats(): Chat[] {
     return this.cache
-      .filter(chat => chat.messages.length > 0 && !chat.parentChatId)
+      .filter(chat => chat.messages.length > 0 && !chat.parentChatId && !chat.forkedFromChatId)
       .sort((a, b) => {
         const aPinned = a.pinned ? 1 : 0;
         const bPinned = b.pinned ? 1 : 0;
