@@ -691,36 +691,30 @@ export default function ChatView({
           })() : null}
 
           {item.role === 'assistant' && item === messages[messages.length - 1] && !isCurrentlyStreaming ? (
-            <View style={[styles.statsContainer, !stats ? { borderTopWidth: 0 } : undefined]}>
-              <View style={styles.statsRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.regenerateButton,
-                    isRegenerating && styles.regenerateButtonDisabled
-                  ]}
-                  onPress={() => {
-                    if (!isRegenerating) {
-                      onRegenerateResponse();
-                    }
-                  }}
-                  disabled={isRegenerating}
-                >
-                  {isRegenerating ? (
-                    <ActivityIndicator size="small" color={themeColors.secondaryText} />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons
-                        name="refresh"
-                        size={14}
-                        color={themeColors.secondaryText}
-                      />
-                      <Text style={[styles.regenerateButtonText, { color: themeColors.secondaryText }]}>
-                        Regenerate
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
+            <View style={styles.regenerateRow}>
+              <TouchableOpacity
+                style={[
+                  styles.regenerateButton,
+                  isRegenerating && styles.regenerateButtonDisabled
+                ]}
+                onPress={() => {
+                  if (!isRegenerating) {
+                    onRegenerateResponse();
+                  }
+                }}
+                disabled={isRegenerating}
+                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              >
+                {isRegenerating ? (
+                  <ActivityIndicator size="small" color={themeColors.secondaryText} />
+                ) : (
+                  <MaterialCommunityIcons
+                    name="refresh"
+                    size={20}
+                    color={themeColors.secondaryText}
+                  />
+                )}
+              </TouchableOpacity>
             </View>
           ) : null}
         </View>
@@ -1027,20 +1021,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     opacity: 0.7,
   },
-  regenerateButton: {
+  regenerateRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    paddingTop: 4,
+  },
+  regenerateButton: {
     padding: 4,
     borderRadius: 4,
     opacity: 0.8,
   },
   regenerateButtonDisabled: {
     opacity: 0.5,
-  },
-  regenerateButtonText: {
-    fontSize: 12,
-    marginLeft: 4,
   },
   emptyState: {
     flex: 1,
