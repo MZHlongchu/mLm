@@ -7,6 +7,9 @@ import { appleFoundationService } from './AppleFoundationService';
 import type { ProviderType } from './ModelManagementService';
 import { RAGService } from './rag/RAGService';
 import type { Message as RAGMessage } from 'react-native-rag';
+import { toolRegistry } from './tools/ToolRegistry';
+import { toolExecutor } from './tools/ToolExecutor';
+import type { ToolCall } from './tools/ToolRegistry';
 
 export interface MessageProcessingCallbacks {
   setMessages: (messages: ChatMessage[]) => void;
@@ -242,7 +245,11 @@ export class MessageProcessingService {
             content = `${instruction}\n\nUser request: ${userPrompt}`;
           }
         } else if (parsed && parsed.type === 'file_upload') {
-          if (parsed.metadata?.ragDocumentId) {
+          if (parsed.metadata?.openaiFileId) {
+            const fileName = parsed.fileName || 'a file';
+            const userContent = parsed.userContent || `File uploaded: ${fileName}`;
+            content = `[File: ${fileName} (id: ${parsed.metadata.openaiFileId})]\n\n${userContent}`;
+          } else if (parsed.metadata?.ragDocumentId) {
             const fileName = parsed.fileName || 'a file';
             const userContent = parsed.userContent || `File uploaded: ${fileName}`;
             content = `User uploaded ${fileName}. The content has been stored for retrieval.\n\nUser request: ${userContent}`;
@@ -330,8 +337,102 @@ export class MessageProcessingService {
       streamTokens: true
     };
 
+    const isOpenAI = OnlineModelService.getBaseProvider(activeProvider) === 'chatgpt';
+
+    /*
+      Image generation: detect explicit image generation requests for OpenAI.
+      If the last user message starts with /image, route to image generation.
+    */
+    if (isOpenAI) {
+      const lastUserMsg = baseMessages.filter(m => m.role === 'user').pop();
+      if (lastUserMsg && typeof lastUserMsg.content === 'string' && lastUserMsg.content.startsWith('/image ')) {
+        const prompt = lastUserMsg.content.slice(7).trim();
+        if (prompt.length > 0) {
+          try {
+            this.callbacks.setStreamingMessage('Generating image...');
+            const imageResult = await onlineModelService.generateImage(prompt, {}, activeProvider);
+            const imageMsg = JSON.stringify({
+              type: 'image_generation',
+              prompt,
+              revisedPrompt: imageResult.revisedPrompt,
+              localUri: imageResult.localUri,
+              url: imageResult.url,
+            });
+            fullResponse = imageMsg;
+            await chatManager.updateMessageContent(
+              messageId,
+              imageMsg,
+              '',
+              { duration: (Date.now() - startTime) / 1000, tokens: 0 }
+            );
+            return;
+          } catch (error) {
+            const errMsg = error instanceof Error ? error.message : 'Image generation failed';
+            fullResponse = errMsg;
+            await chatManager.updateMessageContent(messageId, errMsg, '', { duration: 0, tokens: 0 });
+            return;
+          }
+        }
+      }
+    }
+
     try {
-      await onlineModelService.sendMessage(activeProvider, messageParams, apiParams, legacyStreamCallback);
+      /*
+        Tool call loop for OpenAI: if tools are registered, send with tools
+        and handle the tool call response loop (max 5 iterations).
+      */
+      if (isOpenAI && toolRegistry.hasTools()) {
+        let iteration = 0;
+        let loopMessages = [...messageParams];
+        const tools = toolRegistry.getAllTools();
+
+        while (!toolExecutor.hasReachedLimit(iteration)) {
+          if (this.cancelGenerationRef.current) break;
+          iteration++;
+
+          const response = await onlineModelService.sendOpenAIWithTools(
+            loopMessages,
+            tools,
+            apiParams,
+            undefined,
+            activeProvider
+          );
+
+          if (response.toolCalls && response.toolCalls.length > 0) {
+            this.callbacks.setStreamingMessage('Using tools...');
+
+            loopMessages.push({
+              id: generateRandomId(),
+              role: 'assistant' as const,
+              content: response.fullResponse || '',
+            });
+
+            const results = await toolExecutor.executeAll(response.toolCalls);
+            for (const result of results) {
+              loopMessages.push({
+                id: generateRandomId(),
+                role: 'user' as const,
+                content: `[Tool result for ${result.toolCallId}]: ${result.content}`,
+              });
+            }
+
+            const hasOnlyBuiltins = response.toolCalls.every(
+              tc => toolRegistry.isBuiltin(tc.function.name)
+            );
+            if (hasOnlyBuiltins) {
+              break;
+            }
+            continue;
+          }
+
+          fullResponse = response.fullResponse;
+          tokenCount = response.tokenCount;
+          legacyStreamCallback(fullResponse);
+          break;
+        }
+      } else {
+        await onlineModelService.sendMessage(activeProvider, messageParams, apiParams, legacyStreamCallback);
+      }
     } catch (error) {
       this.callbacks.handleApiError(error, this.getProviderDisplayName(activeProvider));
       
