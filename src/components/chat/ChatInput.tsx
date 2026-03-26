@@ -32,6 +32,8 @@ import type { ProviderType } from '../../services/ModelManagementService';
 import chatManager from '../../utils/ChatManager';
 import { uuidv4 } from 'react-native-rag';
 import { OnlineModelService } from '../../services/OnlineModelService';
+import { openAIFileAdapter } from '../../services/adapters/OpenAIFileAdapter';
+import { openAIFileStore } from '../../services/adapters/OpenAIFileStore';
 
 type ChatInputProps = {
   onSend: (text: string) => void;
@@ -543,6 +545,50 @@ export default function ChatInput({
       const sanitizedPrompt = userPrompt ? userPrompt.trim() : '';
       const userMessage = sanitizedPrompt || `File uploaded: ${displayName}`;
       console.log('file_upload_start', displayName, useRagFlag ? 'rag_on' : 'rag_off');
+
+      /*
+        OpenAI remote model: upload file via Files API instead of local RAG.
+        The file URI is available from selectedFile state set by pickDocument.
+      */
+      const baseProvider = selectedModelPath
+        ? OnlineModelService.getBaseProvider(selectedModelPath)
+        : null;
+      if (baseProvider === 'chatgpt' && selectedFile?.uri) {
+        try {
+          const chatId = chatManager.getCurrentChatId() || 'unknown';
+          const result = await openAIFileAdapter.upload(
+            selectedFile.uri,
+            displayName,
+            'assistants',
+            selectedModelPath!
+          );
+          await openAIFileStore.save({
+            fileId: result.id,
+            filename: displayName,
+            chatId,
+            provider: selectedModelPath!,
+            purpose: 'assistants',
+            bytes: result.bytes,
+            uploadedAt: Date.now(),
+          });
+          const messageObject = {
+            type: 'file_upload',
+            fileName: displayName,
+            internalInstruction: `File "${displayName}" uploaded to OpenAI (id: ${result.id})`,
+            userContent: userMessage,
+            metadata: { openaiFileId: result.id },
+          };
+          console.log('file_upload_openai', displayName, result.id);
+          onSend(JSON.stringify(messageObject));
+          setShowAttachmentMenu(false);
+          setRagProgress(null);
+          return;
+        } catch (error) {
+          console.log('file_upload_openai_error', error instanceof Error ? error.message : 'unknown');
+          showDialog('Upload Error', 'Failed to upload file to OpenAI. Falling back to inline text.');
+        }
+      }
+
       const buildInternalInstruction = (fileBody?: string) => {
         const sections: string[] = [`You're reading a file named: ${displayName}`];
         if (sanitizedPrompt) {
@@ -609,7 +655,7 @@ export default function ChatInput({
       ragCancelRef.current.cancelled = false;
       console.log('file_upload_complete', displayName, ragCancelled ? 'cancelled' : ragHandled ? 'rag' : 'fallback');
     },
-    [onSend, processRagDocument]
+    [onSend, processRagDocument, selectedModelPath, selectedFile, showDialog]
   );
 
   const markRagDisabled = useCallback((raw: string) => {
