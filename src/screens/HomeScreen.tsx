@@ -651,9 +651,18 @@ export default function HomeScreen({ route, navigation }: HomeScreenProps) {
     try {
       await stopGenerationIfRunning();
       const settings = await getEffectiveSettings();
-      
+
+      const lastAssistantIdx = messages.length - 1;
+      const fork = await chatManager.forkChat(lastAssistantIdx);
+      if (!fork) {
+        showDialog('Error', 'Failed to regenerate response');
+        return;
+      }
+      setChat(fork);
+      setMessages([...fork.messages]);
+
       await regenerationService.handleRegenerate(
-        messages,
+        fork.messages,
         activeProvider,
         settings
       );
