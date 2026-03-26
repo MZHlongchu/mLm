@@ -96,7 +96,7 @@ class ChatManager {
   }
 
   getAllChats(): Chat[] {
-    const nonEmptyChats = this.cache.filter(chat => chat.messages.length > 0);
+    const nonEmptyChats = this.cache.filter(chat => chat.messages.length > 0 && !chat.forkedFromChatId);
     return nonEmptyChats.sort((a, b) => b.timestamp - a.timestamp);
   }
 
@@ -131,7 +131,7 @@ class ChatManager {
     const root = this.getChatById(rootId);
     let latest = root?.timestamp ?? 0;
     for (const c of this.cache) {
-      if (c.parentChatId === rootId && c.timestamp > latest) {
+      if ((c.parentChatId === rootId || c.forkedFromChatId === rootId) && c.timestamp > latest) {
         latest = c.timestamp;
       }
     }
@@ -141,10 +141,10 @@ class ChatManager {
   getLatestBranch(rootId: string): Chat | null {
     const root = this.getChatById(rootId);
     if (!root) return null;
-    const branches = this.cache.filter(c => c.parentChatId === rootId);
-    if (branches.length === 0) return root;
-    branches.sort((a, b) => b.timestamp - a.timestamp);
-    return branches[0].timestamp >= root.timestamp ? branches[0] : root;
+    const related = this.cache.filter(c => c.parentChatId === rootId || c.forkedFromChatId === rootId);
+    if (related.length === 0) return root;
+    related.sort((a, b) => b.timestamp - a.timestamp);
+    return related[0].timestamp >= root.timestamp ? related[0] : root;
   }
 
   getBranchCount(rootId: string): number {
