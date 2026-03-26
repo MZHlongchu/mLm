@@ -253,6 +253,8 @@ export class MessageProcessingService {
             const fileName = parsed.fileName || 'a file';
             const userContent = parsed.userContent || `File uploaded: ${fileName}`;
             content = `User uploaded ${fileName}. The content has been stored for retrieval.\n\nUser request: ${userContent}`;
+          } else if (parsed.metadata?.remoteFileUri) {
+            content = msg.content;
           } else {
             content = parsed.internalInstruction || msg.content;
           }
