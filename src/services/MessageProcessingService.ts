@@ -436,7 +436,9 @@ export class MessageProcessingService {
         await onlineModelService.sendMessage(activeProvider, messageParams, apiParams, legacyStreamCallback);
       }
     } catch (error) {
-      this.callbacks.handleApiError(error, this.getProviderDisplayName(activeProvider));
+      if (this.callbacks.handleApiError) {
+        this.callbacks.handleApiError(error, this.getProviderDisplayName(activeProvider));
+      }
       
       await chatManager.updateMessageContent(
         messageId,

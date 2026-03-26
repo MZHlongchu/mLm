@@ -403,7 +403,9 @@ export class RegenerationService {
         await this.callbacks.saveMessagesImmediate(finalMessages);
       }
     } catch (error) {
-      this.callbacks.handleApiError(error, this.getProviderDisplayName(validProvider));
+      if (this.callbacks.handleApiError) {
+        this.callbacks.handleApiError(error, this.getProviderDisplayName(validProvider));
+      }
       this.callbacks.setIsRegenerating(false);
     }
   }
