@@ -683,14 +683,41 @@ export default function ChatView({
                     </Text>
                   </View>
                 ) : null}
-                
+                {item === messages[messages.length - 1] && !isCurrentlyStreaming ? (
+                  <View style={{ flex: 1 }} />
+                ) : null}
+                {item === messages[messages.length - 1] && !isCurrentlyStreaming ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.regenerateButton,
+                      isRegenerating && styles.regenerateButtonDisabled
+                    ]}
+                    onPress={() => {
+                      if (!isRegenerating) {
+                        onRegenerateResponse();
+                      }
+                    }}
+                    disabled={isRegenerating}
+                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                  >
+                    {isRegenerating ? (
+                      <ActivityIndicator size="small" color={themeColors.secondaryText} />
+                    ) : (
+                      <MaterialCommunityIcons
+                        name="refresh"
+                        size={17}
+                        color={themeColors.secondaryText}
+                      />
+                    )}
+                  </TouchableOpacity>
+                ) : null}
               </View>
               ) : null}
             </View>
             );
           })() : null}
 
-          {item.role === 'assistant' && item === messages[messages.length - 1] && !isCurrentlyStreaming ? (
+          {item.role === 'assistant' && !stats && item === messages[messages.length - 1] && !isCurrentlyStreaming ? (
             <View style={styles.regenerateRow}>
               <TouchableOpacity
                 style={[
