@@ -807,27 +807,13 @@ class LlamaManager {
           top_p: TITLE_GENERATION_CONFIG.topP,
           min_p: TITLE_GENERATION_CONFIG.minP,
           jinja: settings.jinja,
-          grammar: settings.grammar || undefined,
           n_probs: 0,
-          penalty_last_n: settings.penaltyLastN,
-          penalty_repeat: settings.penaltyRepeat,
-          penalty_freq: settings.penaltyFreq,
-          penalty_present: settings.penaltyPresent,
-          mirostat: settings.mirostat,
-          mirostat_tau: settings.mirostatTau,
-          mirostat_eta: settings.mirostatEta,
-          dry_multiplier: settings.dryMultiplier,
-          dry_base: settings.dryBase,
-          dry_allowed_length: settings.dryAllowedLength,
-          dry_penalty_last_n: settings.dryPenaltyLastN,
-          dry_sequence_breakers: settings.drySequenceBreakers,
+          penalty_repeat: 1.0,
+          penalty_freq: 0,
+          penalty_present: 0,
           ignore_eos: false,
-          ...(settings.logitBias.length > 0 ? { logit_bias: settings.logitBias } : {}),
           seed: settings.seed,
-          xtc_probability: settings.xtcProbability,
-          xtc_threshold: settings.xtcThreshold,
-          typical_p: settings.typicalP,
-          enable_thinking: settings.enableThinking,
+          enable_thinking: false,
         },
         (data) => {
           if (this.isCancelled) {
@@ -842,20 +828,16 @@ class LlamaManager {
         }
       );
 
-      const title = fullResponse.trim().replace(/['"]/g, '').substring(0, TITLE_GENERATION_CONFIG.maxTitleLength);
+      const title = fullResponse.trim().replace(/['"]/g, '').replace(/<\/?think[^>]*>/g, '').trim().substring(0, TITLE_GENERATION_CONFIG.maxTitleLength);
+      console.log('title_gen_result', { title: title || 'empty', rawLen: fullResponse.length });
       if (title) {
         return title;
       }
       
-      const now = new Date();
-      const dateStr = now.toLocaleDateString();
-      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      return `Chat ${dateStr} ${timeStr}`;
+      throw new Error('empty_title');
     } catch (error) {
-      const now = new Date();
-      const dateStr = now.toLocaleDateString();
-      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      return `Chat ${dateStr} ${timeStr}`;
+      console.log('title_gen_error', error instanceof Error ? error.message : 'unknown');
+      throw error;
     } finally {
       this.isCancelled = false;
       this.releaseGenLock();
