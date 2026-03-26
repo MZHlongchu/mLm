@@ -50,10 +50,27 @@ class LlamaManager {
   private events = new EventEmitter<LlamaManagerEvents>();
   private isCancelled: boolean = false;
   private isUnloading: boolean = false;
+  private genLock: Promise<void> = Promise.resolve();
   
   private multimodalService = new MultimodalService();
   private tokenProcessingService = new TokenProcessingService();
   private settingsManager = new LlamaSettingsManager();
+
+  private genLockRelease: (() => void) | null = null;
+
+  private async acquireGenLock(): Promise<void> {
+    await this.genLock;
+    let release: () => void;
+    this.genLock = new Promise<void>(resolve => { release = resolve; });
+    this.genLockRelease = release!;
+  }
+
+  private releaseGenLock(): void {
+    if (this.genLockRelease) {
+      this.genLockRelease();
+      this.genLockRelease = null;
+    }
+  }
 
   private resolveUseMmapValue(value: unknown): boolean {
     if (value === 'false' || value === false) {
@@ -576,6 +593,8 @@ class LlamaManager {
       throw new Error('Model not initialized');
     }
 
+    await this.acquireGenLock();
+
     let fullResponse = '';
     this.isCancelled = false;
     this.tokenProcessingService.setCancelled(false);
@@ -750,6 +769,7 @@ class LlamaManager {
     } finally {
       this.tokenProcessingService.clearTokenQueue();
       this.isCancelled = false;
+      this.releaseGenLock();
     }
   }
 
@@ -757,6 +777,8 @@ class LlamaManager {
     if (!this.context) {
       throw new Error('Model not initialized');
     }
+
+    await this.acquireGenLock();
 
     const titlePrompt = [
       {
@@ -836,6 +858,7 @@ class LlamaManager {
       return `Chat ${dateStr} ${timeStr}`;
     } finally {
       this.isCancelled = false;
+      this.releaseGenLock();
     }
   }
 
