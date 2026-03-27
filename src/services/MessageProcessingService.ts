@@ -436,6 +436,8 @@ export class MessageProcessingService {
         await onlineModelService.sendMessage(activeProvider, messageParams, apiParams, legacyStreamCallback);
       }
     } catch (error) {
+      console.log('online_model_error', error instanceof Error ? error.message : 'unknown');
+      console.log('online_model_error_stack', error instanceof Error ? error.stack : '');
       if (this.callbacks.handleApiError) {
         this.callbacks.handleApiError(error, this.getProviderDisplayName(activeProvider));
       }

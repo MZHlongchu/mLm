@@ -1,6 +1,7 @@
 import { fs as FileSystem } from './fs';
 import type { Tool, ToolCall } from './tools/ToolRegistry';
 import { openAIImageAdapter, type ImageGenOptions, type GeneratedImage } from './adapters/OpenAIImageAdapter';
+import { openAIFileAdapter } from './adapters/OpenAIFileAdapter';
 
 type ChatMessage = {
   id: string;
@@ -33,6 +34,7 @@ export type OpenAIResponse = {
 export class OpenAIService {
   private apiKeyProvider: (provider: string) => Promise<string | null>;
   private baseUrlProvider: (provider: string) => Promise<string>;
+  private currentProvider = 'chatgpt';
 
   constructor(
     apiKeyProvider: (provider: string) => Promise<string | null>,
@@ -105,7 +107,10 @@ export class OpenAIService {
         const userContent = parsed.userContent || `File uploaded: ${parsed.fileName || 'file'}`;
         return {
           role: message.role,
-          content: `[File: ${parsed.fileName || 'uploaded file'} (id: ${parsed.metadata.openaiFileId})]\n\n${userContent}`,
+          content: [
+            { type: 'file', file: { file_id: parsed.metadata.openaiFileId } },
+            { type: 'text', text: userContent },
+          ],
         };
       }
 
@@ -114,11 +119,11 @@ export class OpenAIService {
         const mimeType = parsed.metadata.mimeType || 'application/octet-stream';
         const userContent = parsed.userContent || `File uploaded: ${fileName}`;
         const ext = fileName.toLowerCase().split('.').pop() || '';
-        const binaryExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
-          'jpg', 'jpeg', 'png', 'gif', 'webp'];
-        const isBinary = binaryExts.includes(ext);
+        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        const uploadExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+          'csv', 'txt', 'md', 'html', 'json', 'jsonl'];
 
-        if (isBinary) {
+        if (imageExts.includes(ext)) {
           try {
             const base64 = await FileSystem.readAsStringAsync(
               parsed.metadata.remoteFileUri,
@@ -128,16 +133,32 @@ export class OpenAIService {
               role: message.role,
               content: [
                 {
-                  type: 'file',
-                  file: {
-                    filename: fileName,
-                    file_data: `data:${mimeType};base64,${base64}`,
-                  },
+                  type: 'image_url',
+                  image_url: { url: `data:${mimeType};base64,${base64}` },
                 },
                 { type: 'text', text: userContent },
               ],
             };
-          } catch {
+          } catch (err) {
+            console.log('openai_file_image_error', err instanceof Error ? err.message : 'unknown');
+          }
+        }
+
+        if (uploadExts.includes(ext)) {
+          try {
+            const result = await openAIFileAdapter.upload(
+              parsed.metadata.remoteFileUri, fileName, 'assistants', this.currentProvider || 'chatgpt'
+            );
+            console.log('openai_file_uploaded', fileName, result.id);
+            return {
+              role: message.role,
+              content: [
+                { type: 'file', file: { file_id: result.id } },
+                { type: 'text', text: userContent },
+              ],
+            };
+          } catch (err) {
+            console.log('openai_file_upload_error', err instanceof Error ? err.message : 'unknown');
           }
         }
 
@@ -192,6 +213,7 @@ export class OpenAIService {
     let fullResponse = '';
 
     try {
+      this.currentProvider = provider;
       const apiKey = await this.apiKeyProvider(provider);
       if (!apiKey) {
         throw new Error('OpenAI API key not found. Please set it in Settings.');
@@ -237,6 +259,7 @@ export class OpenAIService {
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.log('openai_api_error', response.status, errorText.substring(0, 500));
         
         if (response.status === 429 || errorText.includes("quota") || errorText.includes("rate limit") || errorText.includes("insufficient_quota")) {
           throw new Error("QUOTA_EXCEEDED: Your OpenAI API quota has been exceeded. Please try again later or upgrade your API plan.");
