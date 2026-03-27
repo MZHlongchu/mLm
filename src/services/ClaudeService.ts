@@ -1,10 +1,12 @@
 import { fs as FileSystem } from './fs';
+import { claudeFileAdapter, isClaudeUploadable, isClaudeImageFile } from './adapters/ClaudeFileAdapter';
 
 type ChatMessage = {
   id: string;
   content: string;
   role: 'user' | 'assistant' | 'system';
   thinking?: string;
+  toolCallId?: string;
   stats?: {
     duration: number;
     tokens: number;
@@ -21,6 +23,7 @@ export interface ClaudeRequestOptions {
 export class ClaudeService {
   private apiKeyProvider: (provider: string) => Promise<string | null>;
   private baseUrlProvider: (provider: string) => Promise<string>;
+  private currentProvider = 'claude';
 
   constructor(
     apiKeyProvider: (provider: string) => Promise<string | null>,
@@ -101,28 +104,81 @@ export class ClaudeService {
         };
       }
 
-      if (parsed.type === 'file_upload' && parsed.metadata?.remoteFileUri) {
-        const base64 = await FileSystem.readAsStringAsync(
-          parsed.metadata.remoteFileUri,
-          { encoding: FileSystem.EncodingType.Base64 }
-        );
+      if (parsed.type === 'file_upload' && parsed.metadata?.claudeFileId) {
+        const userContent = parsed.userContent || `Analyze this file: ${parsed.fileName || 'document'}`;
+        const filename = parsed.fileName || 'document';
+        const isImage = isClaudeImageFile(filename);
         return {
           role: message.role === 'user' ? 'user' : 'assistant',
           content: [
-            {
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: parsed.metadata.mimeType || 'application/octet-stream',
-                data: base64,
-              },
-            },
-            {
-              type: 'text',
-              text: parsed.userContent || `Analyze this file: ${parsed.fileName || 'document'}`,
-            },
+            isImage
+              ? { type: 'image', source: { type: 'file', file_id: parsed.metadata.claudeFileId } }
+              : { type: 'document', source: { type: 'file', file_id: parsed.metadata.claudeFileId } },
+            { type: 'text', text: userContent },
           ],
         };
+      }
+
+      if (parsed.type === 'file_upload' && parsed.metadata?.remoteFileUri) {
+        const fileName = parsed.fileName || 'document';
+        const userContent = parsed.userContent || `Analyze this file: ${fileName}`;
+        const ext = fileName.toLowerCase().split('.').pop() || '';
+
+        if (isClaudeUploadable(fileName)) {
+          try {
+            const result = await claudeFileAdapter.upload(
+              parsed.metadata.remoteFileUri, fileName, this.currentProvider
+            );
+            console.log('claude_file_uploaded', fileName, result.id);
+            const isImage = isClaudeImageFile(fileName);
+            return {
+              role: message.role === 'user' ? 'user' : 'assistant',
+              content: [
+                isImage
+                  ? { type: 'image', source: { type: 'file', file_id: result.id } }
+                  : { type: 'document', source: { type: 'file', file_id: result.id } },
+                { type: 'text', text: userContent },
+              ],
+            };
+          } catch (err) {
+            console.log('claude_file_upload_error', err instanceof Error ? err.message : 'unknown');
+          }
+        }
+
+        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (imageExts.includes(ext)) {
+          try {
+            const base64 = await FileSystem.readAsStringAsync(
+              parsed.metadata.remoteFileUri,
+              { encoding: FileSystem.EncodingType.Base64 }
+            );
+            return {
+              role: message.role === 'user' ? 'user' : 'assistant',
+              content: [
+                {
+                  type: 'image',
+                  source: { type: 'base64', media_type: parsed.metadata.mimeType || 'image/jpeg', data: base64 },
+                },
+                { type: 'text', text: userContent },
+              ],
+            };
+          } catch (err) {
+            console.log('claude_image_fallback_error', err instanceof Error ? err.message : 'unknown');
+          }
+        }
+
+        try {
+          const text = await FileSystem.readAsStringAsync(parsed.metadata.remoteFileUri);
+          return {
+            role: message.role === 'user' ? 'user' : 'assistant',
+            content: `--- ${fileName} ---\n${text}\n---\n\n${userContent}`,
+          };
+        } catch {
+          return {
+            role: message.role === 'user' ? 'user' : 'assistant',
+            content: userContent,
+          };
+        }
       }
     } catch (error) {
     }
@@ -148,6 +204,7 @@ export class ClaudeService {
     let fullResponse = '';
 
     try {
+      this.currentProvider = provider;
       const apiKey = await this.apiKeyProvider(provider);
       if (!apiKey) {
         throw new Error('Claude API key not found. Please set it in Settings.');
@@ -186,11 +243,19 @@ export class ClaudeService {
       }
 
 
-      const headers = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01'
       };
+
+      const hasFileRef = formattedMessages.some((msg: any) =>
+        Array.isArray(msg.content) &&
+        msg.content.some((block: any) => block.source?.type === 'file' && block.source?.file_id)
+      );
+      if (hasFileRef) {
+        headers['anthropic-beta'] = 'files-api-2025-04-14';
+      }
 
       
   const baseUrl = await this.baseUrlProvider(provider);
