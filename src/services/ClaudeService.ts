@@ -27,6 +27,7 @@ export type ClaudeResponse = {
   tokenCount: number;
   startTime: number;
   toolCalls?: ToolCall[];
+  rawContent?: any[];
 };
 
 export class ClaudeService {
@@ -74,6 +75,13 @@ export class ClaudeService {
   private async parseMessageContent(message: ChatMessage): Promise<any> {
     try {
       const parsed = JSON.parse(message.content);
+
+      if (parsed.type === 'tool_use_response' && parsed.rawContent) {
+        return {
+          role: 'assistant',
+          content: parsed.rawContent,
+        };
+      }
       
       if (parsed.type === 'multimodal' && parsed.content) {
         const content: any[] = [];
@@ -192,7 +200,7 @@ export class ClaudeService {
     } catch (error) {
     }
 
-    if (message.role === 'tool' && message.toolCallId) {
+    if (message.toolCallId) {
       return {
         role: 'user',
         content: [
@@ -344,6 +352,7 @@ export class ClaudeService {
             tokenCount: jsonResponse.usage?.output_tokens || 0,
             startTime,
             toolCalls,
+            rawContent: jsonResponse.content,
           };
         }
         

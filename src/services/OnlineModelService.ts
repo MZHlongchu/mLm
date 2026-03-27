@@ -12,6 +12,7 @@ export interface ChatMessage {
   content: string;
   role: 'user' | 'assistant' | 'system';
   thinking?: string;
+  toolCallId?: string;
   stats?: {
     duration: number;
     tokens: number;

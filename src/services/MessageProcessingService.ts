@@ -41,7 +41,6 @@ export class MessageProcessingService {
   ): Promise<void> {
     const currentChat = chatManager.getCurrentChat();
     if (!currentChat) return;
-    let messageId: string | null = null;
 
     console.log('process_message_start', { provider: activeProvider, chatId: currentChat.id, messageCount: currentChat.messages.length });
 
@@ -91,7 +90,7 @@ export class MessageProcessingService {
       const lastMessage = updatedChat.messages.slice(-1)[0];
       if (!lastMessage) return;
       
-      messageId = lastMessage.id;
+      const messageId = lastMessage.id;
       
       this.callbacks.setStreamingMessageId(messageId);
       this.callbacks.setStreamingMessage('');
@@ -153,23 +152,10 @@ export class MessageProcessingService {
       
     } catch (error) {
       this.callbacks.setIsStreaming(false);
+      this.callbacks.setStreamingMessageId(null);
       this.callbacks.setStreamingThinking('');
       this.callbacks.setStreamingStats(null);
       this.callbacks.setIsRegenerating(false);
-      const errMsg = error instanceof Error ? error.message : 'unknown';
-      console.log('process_message_error', errMsg);
-      if (messageId) {
-        const fallback = errMsg === 'Model not initialized'
-          ? 'Model not initialized. Please load a model and try again.'
-          : 'Sorry, an error occurred while generating a response. Please try again.';
-        await chatManager.updateMessageContent(
-          messageId,
-          fallback,
-          '',
-          { duration: 0, tokens: 0 }
-        );
-      }
-      this.callbacks.setStreamingMessageId(null);
       throw error;
     }
   }
@@ -354,6 +340,7 @@ export class MessageProcessingService {
     };
 
     const isOpenAI = OnlineModelService.getBaseProvider(activeProvider) === 'chatgpt';
+    const isClaude = OnlineModelService.getBaseProvider(activeProvider) === 'claude';
 
     /*
       Image generation: detect explicit image generation requests for OpenAI.
@@ -429,6 +416,56 @@ export class MessageProcessingService {
                 id: generateRandomId(),
                 role: 'user' as const,
                 content: `[Tool result for ${result.toolCallId}]: ${result.content}`,
+              });
+            }
+
+            const hasOnlyBuiltins = response.toolCalls.every(
+              tc => toolRegistry.isBuiltin(tc.function.name)
+            );
+            if (hasOnlyBuiltins) {
+              break;
+            }
+            continue;
+          }
+
+          fullResponse = response.fullResponse;
+          tokenCount = response.tokenCount;
+          legacyStreamCallback(fullResponse);
+          break;
+        }
+      } else if (isClaude && toolRegistry.hasTools()) {
+        let iteration = 0;
+        let loopMessages: any[] = [...messageParams];
+        const tools = toolRegistry.getAllTools();
+
+        while (!toolExecutor.hasReachedLimit(iteration)) {
+          if (this.cancelGenerationRef.current) break;
+          iteration++;
+
+          const response = await onlineModelService.sendClaudeWithTools(
+            loopMessages,
+            tools,
+            apiParams,
+            undefined,
+            activeProvider
+          );
+
+          if (response.toolCalls && response.toolCalls.length > 0) {
+            this.callbacks.setStreamingMessage('Using tools...');
+
+            loopMessages.push({
+              id: generateRandomId(),
+              role: 'assistant' as const,
+              content: JSON.stringify({ type: 'tool_use_response', rawContent: response.rawContent }),
+            });
+
+            const results = await toolExecutor.executeAll(response.toolCalls);
+            for (const result of results) {
+              loopMessages.push({
+                id: generateRandomId(),
+                role: 'user' as const,
+                content: result.content,
+                toolCallId: result.toolCallId,
               });
             }
 
