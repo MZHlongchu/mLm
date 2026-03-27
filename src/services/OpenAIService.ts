@@ -202,6 +202,48 @@ export class OpenAIService {
     };
   }
 
+  private needsResponsesApi(messages: any[]): boolean {
+    return messages.some(msg => {
+      if (Array.isArray(msg.content)) {
+        return msg.content.some((block: any) =>
+          block.type === 'file' && block.file?.file_id
+        );
+      }
+      return false;
+    });
+  }
+
+  private toResponsesFormat(messages: any[]): any[] {
+    return messages.map(msg => {
+      if (typeof msg.content === 'string') {
+        return { role: msg.role, content: msg.content };
+      }
+      if (Array.isArray(msg.content)) {
+        const content = msg.content.map((block: any) => {
+          if (block.type === 'text') {
+            return { type: 'input_text', text: block.text };
+          }
+          if (block.type === 'file' && block.file?.file_id) {
+            return { type: 'input_file', file_id: block.file.file_id };
+          }
+          if (block.type === 'file' && block.file?.file_data) {
+            return {
+              type: 'input_file',
+              filename: block.file.filename,
+              file_data: block.file.file_data,
+            };
+          }
+          if (block.type === 'image_url') {
+            return { type: 'input_image', image_url: block.image_url.url };
+          }
+          return block;
+        });
+        return { role: msg.role, content };
+      }
+      return msg;
+    });
+  }
+
   async generateResponse(
     messages: ChatMessage[],
     options: OpenAIRequestOptions = {},
@@ -231,19 +273,33 @@ export class OpenAIService {
       }
 
   const baseUrl = await this.baseUrlProvider(provider);
-  const url = `${baseUrl}/chat/completions`;
-      
-      const requestBody: Record<string, any> = {
-        model,
-        messages: formattedMessages,
-        temperature,
-        max_tokens: maxTokens,
-        top_p: topP,
-        stream: false
-      };
+  const useResponses = this.needsResponsesApi(formattedMessages);
+  const url = useResponses
+    ? `${baseUrl}/responses`
+    : `${baseUrl}/chat/completions`;
+  console.log('openai_api_endpoint', useResponses ? 'responses' : 'chat_completions');
 
-      if (options.tools && options.tools.length > 0) {
-        requestBody.tools = options.tools;
+      let requestBody: Record<string, any>;
+      if (useResponses) {
+        requestBody = {
+          model,
+          input: this.toResponsesFormat(formattedMessages),
+          temperature,
+          max_output_tokens: maxTokens,
+          top_p: topP,
+        };
+      } else {
+        requestBody = {
+          model,
+          messages: formattedMessages,
+          temperature,
+          max_tokens: maxTokens,
+          top_p: topP,
+          stream: false,
+        };
+        if (options.tools && options.tools.length > 0) {
+          requestBody.tools = options.tools;
+        }
       }
 
       const headers = {
