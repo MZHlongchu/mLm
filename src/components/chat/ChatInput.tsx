@@ -251,7 +251,6 @@ export default function ChatInput({
   const getRemoteFileSupport = useCallback((fileName: string): {
     supported: boolean;
     providerLabel: string;
-    allowedTypes: string;
   } => {
     const baseProvider = OnlineModelService.getBaseProvider(selectedModelPath || '');
 
@@ -260,7 +259,6 @@ export default function ChatInput({
       return {
         supported,
         providerLabel: 'OpenAI',
-        allowedTypes: 'jpg, jpeg, png, gif, webp, pdf, txt, csv, json, jsonl, doc, docx, xls, xlsx, ppt, pptx, md, html, css, js, ts, py, c, cpp',
       };
     }
 
@@ -269,7 +267,6 @@ export default function ChatInput({
       return {
         supported,
         providerLabel: 'Claude',
-        allowedTypes: 'jpg, jpeg, png, gif, webp, pdf, txt',
       };
     }
 
@@ -278,14 +275,12 @@ export default function ChatInput({
       return {
         supported,
         providerLabel: 'Gemini',
-        allowedTypes: 'jpg, jpeg, png, gif, webp, bmp, heic, heif, pdf, txt, md, csv, json, jsonl, html, xml, doc, docx, xls, xlsx, ppt, pptx, mp3, wav, m4a, aac, ogg, mp4, mov, mpeg, mpg, webm',
       };
     }
 
     return {
       supported: true,
       providerLabel: 'Remote provider',
-      allowedTypes: 'provider-dependent file types',
     };
   }, [selectedModelPath]);
 
@@ -832,7 +827,7 @@ export default function ChatInput({
           if (!support.supported) {
             showDialog(
               'Unsupported File Type',
-              `${support.providerLabel} does not support this file type. Allowed types: ${support.allowedTypes}.`
+              `${support.providerLabel} does not support this file type.`
             );
             return;
           }
