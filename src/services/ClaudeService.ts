@@ -1,5 +1,6 @@
 import { fs as FileSystem } from './fs';
 import { claudeFileAdapter, isClaudeUploadable, isClaudeImageFile } from './adapters/ClaudeFileAdapter';
+import type { Tool, ToolSchema, ToolCall } from './tools/ToolRegistry';
 
 type ChatMessage = {
   id: string;
@@ -18,7 +19,15 @@ export interface ClaudeRequestOptions {
   maxTokens?: number;
   topP?: number;
   model?: string;
+  tools?: Tool[];
 }
+
+export type ClaudeResponse = {
+  fullResponse: string;
+  tokenCount: number;
+  startTime: number;
+  toolCalls?: ToolCall[];
+};
 
 export class ClaudeService {
   private apiKeyProvider: (provider: string) => Promise<string | null>;
@@ -182,6 +191,19 @@ export class ClaudeService {
       }
     } catch (error) {
     }
+
+    if (message.role === 'tool' && message.toolCallId) {
+      return {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: message.toolCallId,
+            content: message.content,
+          },
+        ],
+      };
+    }
     
     return {
       role: message.role === 'user' ? 'user' : 'assistant',
@@ -189,16 +211,22 @@ export class ClaudeService {
     };
   }
 
+  private toClaudeTools(tools: Tool[]): any[] {
+    return tools
+      .filter((t): t is ToolSchema => 'function' in t)
+      .map(t => ({
+        name: t.function.name,
+        description: t.function.description,
+        input_schema: t.function.parameters,
+      }));
+  }
+
   async generateResponse(
     messages: ChatMessage[],
     options: ClaudeRequestOptions = {},
     onToken?: (token: string) => boolean | void,
     provider = 'claude'
-  ): Promise<{
-    fullResponse: string;
-    tokenCount: number;
-    startTime: number;
-  }> {
+  ): Promise<ClaudeResponse> {
     const startTime = Date.now();
     let tokenCount = 0;
     let fullResponse = '';
@@ -242,6 +270,13 @@ export class ClaudeService {
         requestBody.system = systemMessage;
       }
 
+      if (options.tools && options.tools.length > 0) {
+        const claudeTools = this.toClaudeTools(options.tools);
+        if (claudeTools.length > 0) {
+          requestBody.tools = claudeTools;
+        }
+      }
+
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -274,11 +309,31 @@ export class ClaudeService {
       
       if (jsonResponse.content && jsonResponse.content.length > 0) {
         let text = '';
+        const toolCalls: ToolCall[] = [];
         
         for (const block of jsonResponse.content) {
           if (block.type === 'text' && block.text) {
             text += block.text;
           }
+          if (block.type === 'tool_use') {
+            toolCalls.push({
+              id: block.id,
+              type: 'function',
+              function: {
+                name: block.name,
+                arguments: JSON.stringify(block.input),
+              },
+            });
+          }
+        }
+
+        if (toolCalls.length > 0) {
+          return {
+            fullResponse: text,
+            tokenCount: jsonResponse.usage?.output_tokens || 0,
+            startTime,
+            toolCalls,
+          };
         }
         
         fullResponse = text;
