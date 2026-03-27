@@ -22,6 +22,11 @@ const ALLOWED_EXTENSIONS = [
 
 const MAX_FILE_SIZE = 512 * 1024 * 1024;
 
+export const isOpenAIUploadable = (filename: string): boolean => {
+  const ext = filename.toLowerCase().split('.').pop() || '';
+  return ALLOWED_EXTENSIONS.includes(ext);
+};
+
 export const getMimeType = (filename: string): string => {
   const ext = filename.toLowerCase().split('.').pop() || '';
   const mimeMap: Record<string, string> = {

@@ -32,7 +32,8 @@ import type { ProviderType } from '../../services/ModelManagementService';
 import chatManager from '../../utils/ChatManager';
 import { uuidv4 } from 'react-native-rag';
 import { OnlineModelService } from '../../services/OnlineModelService';
-import { getMimeType } from '../../services/adapters/OpenAIFileAdapter';
+import { getMimeType, isOpenAIUploadable } from '../../services/adapters/OpenAIFileAdapter';
+import { isClaudeUploadable } from '../../services/adapters/ClaudeFileAdapter';
 
 type ChatInputProps = {
   onSend: (text: string) => void;
@@ -245,6 +246,46 @@ export default function ChatInput({
     const lowerCaseName = fileName.toLowerCase();
     return imageExtensions.some(ext => lowerCaseName.endsWith(ext));
   };
+
+  const getRemoteFileSupport = useCallback((fileName: string): {
+    supported: boolean;
+    providerLabel: string;
+    allowedTypes: string;
+  } => {
+    const baseProvider = OnlineModelService.getBaseProvider(selectedModelPath || '');
+
+    if (baseProvider === 'chatgpt') {
+      const supported = isImageFile(fileName) || isOpenAIUploadable(fileName);
+      return {
+        supported,
+        providerLabel: 'OpenAI',
+        allowedTypes: 'jpg, jpeg, png, gif, webp, pdf, txt, csv, json, jsonl, doc, docx, xls, xlsx, ppt, pptx, md, html, css, js, ts, py, c, cpp',
+      };
+    }
+
+    if (baseProvider === 'claude') {
+      const supported = isImageFile(fileName) || isClaudeUploadable(fileName);
+      return {
+        supported,
+        providerLabel: 'Claude',
+        allowedTypes: 'jpg, jpeg, png, gif, webp, pdf, txt',
+      };
+    }
+
+    if (baseProvider === 'gemini') {
+      return {
+        supported: true,
+        providerLabel: 'Gemini',
+        allowedTypes: 'provider-dependent MIME types',
+      };
+    }
+
+    return {
+      supported: true,
+      providerLabel: 'Remote provider',
+      allowedTypes: 'provider-dependent file types',
+    };
+  }, [selectedModelPath]);
 
   const showMmProjSelector = async (action: 'camera' | 'file') => {
     setPendingMultimodalAction(action);
@@ -782,22 +823,34 @@ export default function ChatInput({
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
+        const fileName = file.name || 'document';
+
+        if (isRemoteModel) {
+          const support = getRemoteFileSupport(fileName);
+          if (!support.supported) {
+            showDialog(
+              'Unsupported File Type',
+              `${support.providerLabel} does not support this file type. Allowed types: ${support.allowedTypes}.`
+            );
+            return;
+          }
+        }
         
-        if (isImageFile(file.name) && !checkMultimodalSupport()) {
+        if (isImageFile(fileName) && !checkMultimodalSupport()) {
           const isOnlineModel = isOnlineProvider(selectedModelPath);
           const isMLX = engineService.getEngineForModel(selectedModelPath!) === 'mlx';
           if (!isOnlineModel && !isMLX) {
             setPendingFileForMultimodal({
               uri: file.uri,
-              name: file.name
+              name: fileName
             });
             showMmProjSelector('file');
             return;
           }
         }
 
-        if (isRemoteModel && !isImageFile(file.name)) {
-          setPendingAttachment({ uri: file.uri, name: file.name || 'document' });
+        if (isRemoteModel && !isImageFile(fileName)) {
+          setPendingAttachment({ uri: file.uri, name: fileName });
           setShowAttachmentMenu(false);
           setTimeout(() => inputRef.current?.focus(), 100);
           return;
@@ -805,7 +858,7 @@ export default function ChatInput({
         
         setSelectedFile({
           uri: file.uri,
-          name: file.name
+          name: fileName
         });
         setFileModalVisible(true);
         setShowAttachmentMenu(false);
@@ -813,7 +866,7 @@ export default function ChatInput({
     } catch (error) {
       showDialog('Error', 'Could not pick the document. Please try again.');
     }
-  }, [selectedModelPath, isMultimodalEnabled, isRemoteModel, handleRemoteUpload]);
+  }, [selectedModelPath, isMultimodalEnabled, isRemoteModel, getRemoteFileSupport, showDialog]);
 
   const closeFileModal = useCallback(() => {
     setFileModalVisible(false);
