@@ -52,6 +52,9 @@ export default function ModelParametersScreen({ navigation, route }: Props) {
     llamaManager.getSettings(),
   );
   const [error, setError] = useState<string | null>(null);
+  const [noExtraBuffers, setNoExtraBuffers] = useState<boolean>(
+    llamaManager.getNoExtraBuffers()
+  );
   const showMlxWarning = !isPerModel && Platform.OS === 'ios';
 
   const [dialogConfig, setDialogConfig] = useState<{
@@ -188,6 +191,11 @@ export default function ModelParametersScreen({ navigation, route }: Props) {
           onMaxTokensPress={handleMaxTokens}
           onDialogOpen={handleOpenDialog}
           showMlxWarning={showMlxWarning}
+          noExtraBuffers={noExtraBuffers}
+          onToggleNoExtraBuffers={async (enabled) => {
+            setNoExtraBuffers(enabled);
+            await llamaManager.setNoExtraBuffers(enabled);
+          }}
         />
 
         <ModelSettingsControls
