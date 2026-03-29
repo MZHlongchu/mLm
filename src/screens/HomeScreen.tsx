@@ -686,17 +686,28 @@ export default function HomeScreen({ route, navigation }: HomeScreenProps) {
 
   const startNewChat = async () => {
     try {
+      const wasStreaming = isStreaming || isLoading || isRegenerating;
+
       cancelGenerationRef.current = true;
-      engineService.stop();
-      if (activeProvider === 'local') {
-        try { await llamaManager.stopCompletion(); } catch {}
-      } else if (activeProvider === 'apple-foundation') {
-        appleFoundationService.cancel();
-      }
       setIsLoading(false);
-      resetStreamingState();
-      cancelGenerationRef.current = true;
+      setIsStreaming(false);
+      setIsRegenerating(false);
+      setStreamingMessage('');
+      setStreamingThinking('');
+      setStreamingMessageId(null);
+      setStreamingStats(null);
+
+      if (wasStreaming) {
+        engineService.stop();
+        if (activeProvider === 'local') {
+          try { await llamaManager.stopCompletion(); } catch {}
+        } else if (activeProvider === 'apple-foundation') {
+          appleFoundationService.cancel();
+        }
+      }
+
       await ChatLifecycleService.startNewChat({ setChat, setMessages });
+      cancelGenerationRef.current = false;
     } catch (error) {
       showDialog(
         'Error',
