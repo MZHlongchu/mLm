@@ -10,6 +10,7 @@ import type { Message as RAGMessage } from 'react-native-rag';
 import { toolRegistry } from './tools/ToolRegistry';
 import { toolExecutor } from './tools/ToolExecutor';
 import type { ToolCall } from './tools/ToolRegistry';
+import { ThinkTagParser } from '../utils/thinkTagParser';
 
 export interface MessageProcessingCallbacks {
   setMessages: (messages: ChatMessage[]) => void;
@@ -881,38 +882,44 @@ export class MessageProcessingService {
     console.log('local_model_start', { messageId, skipRag, msgCount: processedMessages.length });
     console.log('local_model_settings', { systemPrompt: settings.systemPrompt, temperature: settings.temperature, maxTokens: settings.maxTokens });
 
+    const thinkParser = new ThinkTagParser();
+
     const streamCallback = (token: string) => {
       if (this.cancelGenerationRef.current) {
         console.log('local_stream_cancelled');
         return false;
       }
 
-      if (tokenCount <= 5 || tokenCount % 50 === 0) {
-        console.log(`local_token[${tokenCount}]`, JSON.stringify(token), { isThinking });
-      }
+      const chunks = thinkParser.feed(token);
 
-      if (firstTokenTime === null && !isThinking && token.trim().length > 0 && !token.includes('<think>') && !token.includes('</think>')) {
-        firstTokenTime = Date.now() - startTime;
-      }
+      for (const chunk of chunks) {
+        if (chunk.type === 'open') {
+          isThinking = true;
+          console.log('local_thinking_start');
+          continue;
+        }
+        if (chunk.type === 'close') {
+          isThinking = false;
+          console.log('local_thinking_end', { thinkingLength: thinking.length });
+          continue;
+        }
 
-      if (token.includes('<think>')) {
-        isThinking = true;
-        console.log('local_thinking_start');
-        return true;
-      }
-      if (token.includes('</think>')) {
-        isThinking = false;
-        console.log('local_thinking_end', { thinkingLength: thinking.length });
-        return true;
-      }
+        if (tokenCount <= 5 || tokenCount % 50 === 0) {
+          console.log(`local_token[${tokenCount}]`, JSON.stringify(chunk.text), { isThinking });
+        }
 
-      if (isThinking) {
-        thinking += token;
-        this.callbacks.setStreamingThinking(thinking.trim());
-      } else {
-        tokenCount++;
-        fullResponse += token;
-        this.callbacks.setStreamingMessage(fullResponse);
+        if (firstTokenTime === null && !isThinking && chunk.text.trim().length > 0) {
+          firstTokenTime = Date.now() - startTime;
+        }
+
+        if (isThinking) {
+          thinking += chunk.text;
+          this.callbacks.setStreamingThinking(thinking.trim());
+        } else {
+          tokenCount++;
+          fullResponse += chunk.text;
+          this.callbacks.setStreamingMessage(fullResponse);
+        }
       }
 
       const duration = (Date.now() - startTime) / 1000;
