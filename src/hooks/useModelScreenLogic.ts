@@ -245,14 +245,15 @@ export const useModelScreenLogic = (navigation: any, routeParams?: ModelRoutePar
     try {
       setIsLoading(true);
       setIsExporting(true);
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
       await new Promise<void>(resolve => InteractionManager.runAfterInteractions(() => resolve()));
       await modelDownloader.exportModel(modelPath, modelName);
-      setIsLoading(false);
-      setIsExporting(false);
     } catch (error) {
+      showDialog('Share Failed', `Failed to share ${modelName}. Please try again.`);
+    } finally {
       setIsLoading(false);
       setIsExporting(false);
-      showDialog('Share Failed', `Failed to share ${modelName}. Please try again.`);
     }
   };
 
