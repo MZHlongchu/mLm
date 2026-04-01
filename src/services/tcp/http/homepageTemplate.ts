@@ -179,7 +179,7 @@ export function getHomepageHTML(): string {
         <p class="endpoint-desc">Chat completions with streaming (SSE) support. Compatible with OpenAI client libraries and plugins.</p>
         <div class="code-label">Request:</div>
         <pre class="code-block">{
-  "model": "llama-3.2-1b.gguf",
+  "model": "llama-3.2-1b",
   "messages": [
     {"role": "system", "content": "You are a helpful assistant"},
     {"role": "user", "content": "Hello!"}
@@ -200,7 +200,7 @@ data: [DONE]</pre>
         <pre class="code-block">{
   "id": "chatcmpl-...",
   "object": "chat.completion",
-  "model": "llama-3.2-1b.gguf",
+  "model": "llama-3.2-1b",
   "choices": [{
     "index": 0,
     "message": {"role": "assistant", "content": "Hi there!"},
@@ -238,7 +238,7 @@ data: [DONE]</pre>
         <p class="endpoint-desc">Stream chat completions with conversation history. Use local GGUF names or <code>apple-foundation</code> in the <code>model</code> field.</p>
         <div class="code-label">Request:</div>
         <pre class="code-block">{
-  "model": "llama-3.2-1b.gguf",
+  "model": "llama-3.2-1b",
   "messages": [
     {"role": "system", "content": "You are a helpful assistant"},
     {"role": "user", "content": "Hello!"}
@@ -355,7 +355,7 @@ data: [DONE]</pre>
         <p class="endpoint-desc">Get detailed information about a model including GGUF metadata and current settings. Use <code>name</code>, <code>model</code>, or <code>path</code> in the request.</p>
         <div class="code-label">Request:</div>
         <pre class="code-block">{
-  "model": "llama-3.2-1b.gguf"
+  "model": "llama-3.2-1b"
 }</pre>
         <div class="code-label">Response:</div>
         <pre class="code-block">{
@@ -379,12 +379,12 @@ data: [DONE]</pre>
         <div class="code-label">Request:</div>
         <pre class="code-block">{
   "url": "https://huggingface.co/model.gguf",
-  "model": "my-custom-model.gguf"
+  "model": "my-custom-model"
 }</pre>
         <div class="code-label">Response:</div>
         <pre class="code-block">{
   "status": "downloading",
-  "model": "my-custom-model.gguf",
+  "model": "my-custom-model",
   "downloadId": "download-abc123"
 }</pre>
       </div>
@@ -397,14 +397,14 @@ data: [DONE]</pre>
         <p class="endpoint-desc">Copy an existing model file under a new name. Returns 409 if the destination already exists. External models cannot be copied.</p>
         <div class="code-label">Request:</div>
         <pre class="code-block">{
-  "source": "llama-3.2-1b.gguf",
-  "destination": "llama-backup.gguf"
+  "source": "llama-3.2-1b",
+  "destination": "llama-backup"
 }</pre>
         <div class="code-label">Response:</div>
         <pre class="code-block">{
   "status": "copied",
-  "source": "llama-3.2-1b.gguf",
-  "destination": "llama-backup.gguf"
+  "source": "llama-3.2-1b",
+  "destination": "llama-backup"
 }</pre>
       </div>
 
@@ -416,7 +416,7 @@ data: [DONE]</pre>
         <p class="endpoint-desc">Delete a model from local storage</p>
         <div class="code-label">Request:</div>
         <pre class="code-block">{
-  "name": "llama-3.2-1b.gguf"
+  "name": "llama-3.2-1b"
 }</pre>
         <div class="code-label">Response:</div>
         <pre class="code-block">{
@@ -437,7 +437,7 @@ data: [DONE]</pre>
         <div class="code-label">Request (load/unload):</div>
         <pre class="code-block">{
   "action": "load",
-  "model": "llama-3.2-1b.gguf"
+  "model": "llama-3.2-1b"
 }</pre>
         <div class="code-label">Response:</div>
         <pre class="code-block">{
@@ -503,7 +503,7 @@ data: [DONE]</pre>
         <p class="endpoint-desc">Generate embeddings for text</p>
         <div class="code-label">Request:</div>
         <pre class="code-block">{
-  "model": "llama-3.2-1b.gguf",
+  "model": "llama-3.2-1b",
   "input": "The quick brown fox"
 }</pre>
         <div class="code-label">Response:</div>
@@ -511,7 +511,7 @@ data: [DONE]</pre>
   "embeddings": [
     [0.123, -0.456, 0.789, ...]
   ],
-  "model": "llama-3.2-1b.gguf"
+  "model": "llama-3.2-1b"
 }</pre>
       </div>
 
