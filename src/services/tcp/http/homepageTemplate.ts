@@ -160,11 +160,36 @@ export function getHomepageHTML(): string {
     <p class="subtitle">Complete API reference for local AI inference</p>
 
     <div class="nav">
+      <button class="nav-btn" onclick="document.getElementById('setup').scrollIntoView({behavior:'smooth'})">Quick Start</button>
       <button class="nav-btn" onclick="document.getElementById('openai').scrollIntoView({behavior:'smooth'})">OpenAI Compatible</button>
       <button class="nav-btn" onclick="document.getElementById('chat').scrollIntoView({behavior:'smooth'})">Chat</button>
       <button class="nav-btn" onclick="document.getElementById('models').scrollIntoView({behavior:'smooth'})">Models</button>
       <button class="nav-btn" onclick="document.getElementById('rag').scrollIntoView({behavior:'smooth'})">RAG</button>
       <button class="nav-btn" onclick="document.getElementById('server').scrollIntoView({behavior:'smooth'})">Server</button>
+    </div>
+
+    <div id="setup" class="section">
+      <h2 class="section-title">Quick Start</h2>
+      <p style="color:#666;margin-bottom:20px;line-height:1.6;">Get up and running with the InferrLM API in minutes. Works with any OpenAI-compatible client.</p>
+
+      <div class="endpoint-card" style="border-left-color:#10b981;">
+        <p class="endpoint-desc"><strong>1. Start the Server</strong> &mdash; Toggle the server switch in the InferrLM app. Your URL will appear (e.g. <code>http://192.168.1.10:8889</code>).</p>
+        <p class="endpoint-desc"><strong>2. Download a Model</strong> &mdash; Ensure at least one GGUF model is downloaded in the Models tab.</p>
+        <p class="endpoint-desc"><strong>3. Configure Your Client</strong> &mdash; Set the base URL to <code>http://&lt;device-ip&gt;:8889/v1</code>. No API key required &mdash; use any placeholder if needed.</p>
+        <p class="endpoint-desc"><strong>4. Set the Model Name</strong> &mdash; Use the model name from the Models tab (e.g. <code>llama-3.2-1b</code>). The <code>.gguf</code> extension is optional.</p>
+        <p class="endpoint-desc" style="margin-bottom:0;"><strong>5. Send a Request</strong></p>
+      </div>
+      <pre class="code-block">curl -X POST http://&lt;device-ip&gt;:8889/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "llama-3.2-1b", "messages": [{"role": "user", "content": "Hello!"}]}'</pre>
+
+      <div class="endpoint-card" style="border-left-color:#667eea;margin-top:20px;">
+        <p class="endpoint-desc" style="margin-bottom:8px;"><strong>Client Examples</strong></p>
+        <p class="endpoint-desc"><strong>Python (OpenAI SDK):</strong> <code>client = OpenAI(base_url="http://&lt;ip&gt;:8889/v1", api_key="any")</code></p>
+        <p class="endpoint-desc"><strong>Continue (VS Code):</strong> Set provider to "openai", base URL to <code>http://&lt;ip&gt;:8889/v1</code></p>
+        <p class="endpoint-desc"><strong>Open WebUI:</strong> Add an OpenAI connection with base URL <code>http://&lt;ip&gt;:8889/v1</code></p>
+        <p class="endpoint-desc" style="margin-bottom:0;"><strong>Obsidian Copilot:</strong> Set OpenAI-compatible base URL to <code>http://&lt;ip&gt;:8889/v1</code></p>
+      </div>
     </div>
 
     <div id="openai" class="section">
