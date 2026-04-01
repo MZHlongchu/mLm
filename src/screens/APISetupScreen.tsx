@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { theme } from '../constants/theme';
 import AppHeader from '../components/AppHeader';
 import { useStoredModels } from '../hooks/useStoredModels';
+import { ModelType } from '../types/models';
 
 const steps = [
   {
@@ -31,7 +32,7 @@ export default function APISetupScreen() {
   const { storedModels } = useStoredModels();
   const [copiedName, setCopiedName] = useState<string | null>(null);
 
-  const ggufModels = storedModels;
+  const ggufModels = storedModels.filter(m => m.modelType !== ModelType.PROJECTION);
 
   const copyName = (name: string) => {
     const displayName = name.replace(/\.gguf$/i, '');
