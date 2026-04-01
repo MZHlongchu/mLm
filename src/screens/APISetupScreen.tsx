@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, Text, TouchableOpacity, Clipboard } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -6,6 +6,7 @@ import { theme } from '../constants/theme';
 import AppHeader from '../components/AppHeader';
 import { useStoredModels } from '../hooks/useStoredModels';
 import { ModelType } from '../types/models';
+import { appleFoundationService } from '../services/AppleFoundationService';
 
 const steps = [
   {
@@ -31,8 +32,14 @@ export default function APISetupScreen() {
   const themeColors = theme[currentTheme as 'light' | 'dark'];
   const { storedModels } = useStoredModels();
   const [copiedName, setCopiedName] = useState<string | null>(null);
+  const [foundationEnabled, setFoundationEnabled] = useState(false);
+
+  useEffect(() => {
+    appleFoundationService.isEnabled().then(setFoundationEnabled);
+  }, []);
 
   const ggufModels = storedModels.filter(m => m.modelType !== ModelType.PROJECTION);
+  const hasModels = foundationEnabled || ggufModels.length > 0;
 
   const copyName = (name: string) => {
     const displayName = name.replace(/\.gguf$/i, '');
@@ -68,9 +75,29 @@ export default function APISetupScreen() {
 
         <View style={[styles.card, { backgroundColor: currentTheme === 'dark' ? 'rgba(255,255,255,0.06)' : '#f7f9fc' }]}>
           <Text style={[styles.stepTitle, { color: themeColors.text }]}>4. Set the Model Name</Text>
-          <Text style={[styles.stepBody, { color: themeColors.secondaryText, marginBottom: ggufModels.length > 0 ? 12 : 0 }]}>
+          <Text style={[styles.stepBody, { color: themeColors.secondaryText, marginBottom: hasModels ? 12 : 0 }]}>
             Use a model name below as the "model" field in your requests. The .gguf extension is optional.
           </Text>
+          {foundationEnabled && (
+            <View
+              style={[styles.modelRow, { borderColor: themeColors.borderColor }]}
+            >
+              <Text style={[styles.modelName, { color: themeColors.text }]} numberOfLines={1}>
+                apple-foundation
+              </Text>
+              <TouchableOpacity
+                style={[styles.copyBtn, { backgroundColor: copiedName === 'apple-foundation' ? '#28a745' : (currentTheme === 'dark' ? 'rgba(255,255,255,0.1)' : themeColors.primary + '15') }]}
+                onPress={() => copyName('apple-foundation')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <MaterialCommunityIcons
+                  name={copiedName === 'apple-foundation' ? 'check' : 'content-copy'}
+                  size={15}
+                  color={copiedName === 'apple-foundation' ? '#fff' : themeColors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
           {ggufModels.length === 0 ? null : ggufModels.map((m) => {
             const displayName = m.name.replace(/\.gguf$/i, '');
             const copied = copiedName === m.name;
