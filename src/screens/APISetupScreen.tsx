@@ -11,7 +11,7 @@ const steps = [
   },
   {
     title: '2. Download a Model',
-    body: 'Make sure you have at least one GGUF model downloaded in the Models tab. The model name (without .gguf) is what you will use in API requests.',
+    body: 'Make sure you have at least one GGUF model downloaded in the Models tab. The model name (with/without .gguf) is what you will use in API requests.',
   },
   {
     title: '3. Configure Your Client',
@@ -27,12 +27,7 @@ const steps = [
   },
 ];
 
-const clients = [
-  { name: 'Python (OpenAI SDK)', config: 'client = OpenAI(base_url="http://<ip>:8889/v1", api_key="any")' },
-  { name: 'Continue (VS Code)', config: 'Set provider to "openai", base URL to http://<ip>:8889/v1' },
-  { name: 'Open WebUI', config: 'Add an OpenAI connection with base URL http://<ip>:8889/v1' },
-  { name: 'Obsidian Copilot', config: 'Set OpenAI-compatible base URL to http://<ip>:8889/v1' },
-];
+
 
 export default function APISetupScreen() {
   const { theme: currentTheme } = useTheme();
@@ -40,7 +35,7 @@ export default function APISetupScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <AppHeader title="API Setup" showBackButton />
+      <AppHeader title="API Setup" showBackButton rightButtons={[]} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -50,7 +45,7 @@ export default function APISetupScreen() {
           Quick Start
         </Text>
         <Text style={[styles.subtitle, { color: themeColors.secondaryText }]}>
-          Connect any OpenAI-compatible app to your local models
+          Connect any OpenAI-compatible app to your local models. This works with any application or library that supports the OpenAI API. Both devices must be on the same local network.
         </Text>
 
         {steps.map((step, i) => (
@@ -71,30 +66,6 @@ export default function APISetupScreen() {
             </Text>
           </View>
         ))}
-
-        <Text style={[styles.heading, { color: themeColors.text, marginTop: 28 }]}>
-          Client Examples
-        </Text>
-
-        {clients.map((c, i) => (
-          <View
-            key={i}
-            style={[styles.card, { backgroundColor: currentTheme === 'dark' ? 'rgba(255,255,255,0.06)' : '#f7f9fc' }]}
-          >
-            <Text style={[styles.clientName, { color: themeColors.text }]}>
-              {c.name}
-            </Text>
-            <Text style={[styles.codeText, { color: themeColors.secondaryText }]}>
-              {c.config}
-            </Text>
-          </View>
-        ))}
-
-        <View style={[styles.note, { backgroundColor: currentTheme === 'dark' ? 'rgba(102,126,234,0.15)' : '#eef2ff' }]}>
-          <Text style={[styles.noteText, { color: themeColors.text }]}>
-            Both devices must be on the same WiFi network. The full API documentation is available at the server homepage when the server is running.
-          </Text>
-        </View>
       </ScrollView>
     </View>
   );
@@ -136,11 +107,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     fontFamily: 'Courier',
-  },
-  clientName: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 4,
   },
   note: {
     borderRadius: 12,

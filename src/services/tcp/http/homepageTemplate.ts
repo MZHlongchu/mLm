@@ -184,11 +184,7 @@ export function getHomepageHTML(): string {
   -d '{"model": "llama-3.2-1b", "messages": [{"role": "user", "content": "Hello!"}]}'</pre>
 
       <div class="endpoint-card" style="border-left-color:#667eea;margin-top:20px;">
-        <p class="endpoint-desc" style="margin-bottom:8px;"><strong>Client Examples</strong></p>
-        <p class="endpoint-desc"><strong>Python (OpenAI SDK):</strong> <code>client = OpenAI(base_url="http://&lt;ip&gt;:8889/v1", api_key="any")</code></p>
-        <p class="endpoint-desc"><strong>Continue (VS Code):</strong> Set provider to "openai", base URL to <code>http://&lt;ip&gt;:8889/v1</code></p>
-        <p class="endpoint-desc"><strong>Open WebUI:</strong> Add an OpenAI connection with base URL <code>http://&lt;ip&gt;:8889/v1</code></p>
-        <p class="endpoint-desc" style="margin-bottom:0;"><strong>Obsidian Copilot:</strong> Set OpenAI-compatible base URL to <code>http://&lt;ip&gt;:8889/v1</code></p>
+        <p class="endpoint-desc" style="margin-bottom:0;">This works with any application or library that supports the OpenAI API &mdash; just point it to <code>http://&lt;device-ip&gt;:8889/v1</code>. Both devices must be on the same local network.</p>
       </div>
     </div>
 

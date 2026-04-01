@@ -407,7 +407,7 @@ export default function LocalServerScreen() {
                       Copy Server URL
                     </Text>
                     <Text style={[styles.settingDescription, { color: themeColors.secondaryText }]}> 
-                      Share with other devices on WiFi
+                      Share with other devices on local network
                     </Text>
                     {serverStatus.signalingURL ? (
                       <Text style={[styles.settingDescription, { color: themeColors.secondaryText }]} numberOfLines={1}>

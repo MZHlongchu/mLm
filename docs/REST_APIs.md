@@ -1,8 +1,23 @@
 # InferrLM REST API Documentation
 
-Complete API reference for InferrLM's local HTTP server that exposes AI inference capabilities over your WiFi network.
+Complete API reference for InferrLM's local HTTP server that exposes AI inference capabilities over your local network.
 
 ## Getting Started
+
+### Quick Start
+
+1. **Start the server** — Open InferrLM, go to the **Server** tab, and toggle it on. Your URL will appear (e.g. `http://192.168.1.10:8889`).
+2. **Download a model** — Make sure at least one GGUF model is downloaded in the **Models** tab. The model name (without `.gguf`) is used in API requests.
+3. **Configure your client** — Point any OpenAI-compatible client to `http://YOUR_DEVICE_IP:8889/v1`. No API key is required — use any placeholder if the client requires one.
+4. **Send a request:**
+
+```bash
+curl -X POST http://YOUR_DEVICE_IP:8889/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "llama-3.2-1b", "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
+> This works with any application or library that supports the OpenAI API — just point it to `http://YOUR_DEVICE_IP:8889/v1`. Both devices must be on the same local network. The `.gguf` extension is optional in the model name.
 
 ### Starting the Server
 
@@ -15,7 +30,6 @@ Complete API reference for InferrLM's local HTTP server that exposes AI inferenc
 ### Configuration Options
 
 - **Auto-start**: Automatically start the server when the app launches
-- **Network Access**: Control whether external devices can access the server
 - **Port**: Default port is 8889 (configurable in settings)
 
 ### Base Configuration
