@@ -16,13 +16,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'yarn'
 
-      - name: Setup JDK ${{ env.JAVA_VERSION }}
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -39,26 +39,23 @@ jobs:
 
       - name: Decode signing keystore
         working-directory: android/app
-        run: |
-          echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app.key
+        run: echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app.key
 
       - name: Write signing properties
         working-directory: android
         run: |
-          cat << 'PROPS' > key.properties
-          ${{ secrets.SIGNING_CONFIG }}
-          PROPS
+          printf '%s\n' '${{ secrets.SIGNING_CONFIG }}' > key.properties
           sed -i 's/^\(storePassword\|keyPassword\|keyAlias\|storeFile\)="\([^"]*\)"/\1=\2/g' key.properties
 
       - name: Enable ABI split
         working-directory: android/app
         run: |
-          node << 'NODE_EOF'
+          node -e "
           const fs = require('fs');
           const file = 'build.gradle';
           let content = fs.readFileSync(file, 'utf8');
           if (!content.includes('splits')) {
-            const block = `
+            const block = \`
     splits {
         abi {
             enable true
@@ -66,7 +63,7 @@ jobs:
             include 'arm64-v8a'
             universalApk false
         }
-    }`;
+    }\`;
             const idx = content.indexOf('android {');
             if (idx !== -1) {
               const insertPos = idx + 'android {'.length;
@@ -74,7 +71,7 @@ jobs:
             }
           }
           fs.writeFileSync(file, content);
-          NODE_EOF
+          "
 
       - name: Build Release APK
         working-directory: android
