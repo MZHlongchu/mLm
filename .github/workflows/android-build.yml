@@ -22,12 +22,32 @@ jobs:
       - run: npx expo prebuild --clean --platform android
       - run: echo "${{ secrets.KEY_BASE64 }}" | base64 -d > android/app/app.key
       - run: echo "${{ secrets.SIGNING_CONFIG }}" > android/key.properties
-      - run: |
-          sed -i "/android {/a\\    splits {\\n        abi {\\n            enable true\\n            reset()\\n            include 'arm64-v8a'\\n            universalApk false\\n        }\\n    }" android/app/build.gradle
+      - name: Enable ABI split
+        run: |
+          python3 -c "
+          import re
+          with open('android/app/build.gradle', 'r') as f:
+              content = f.read()
+          if 'splits' not in content:
+              block = '''    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a'
+            universalApk false
+        }
+    }'''
+              content = content.replace('android {', 'android {\n' + block, 1)
+              with open('android/app/build.gradle', 'w') as f:
+                  f.write(content)
+              print('ABI split injected')
+          else:
+              print('ABI split already exists')
+          "
       - run: grep -A 8 "splits" android/app/build.gradle
-      - run: |
-          cd android
-          ./gradlew :app:assembleRelease --console=plain
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease --console=plain --no-daemon
       - run: ls -la android/app/build/outputs/apk/release/
       - uses: actions/upload-artifact@v4
         with:
