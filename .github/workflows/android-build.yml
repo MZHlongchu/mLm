@@ -12,7 +12,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
       - run: yarn install --frozen-lockfile
       - run: echo '{}' > google-services.json
       - run: npx expo prebuild --clean --platform android
       - run: ls -la android/app/
+      - name: Decode keystore
+        run: echo "${{ secrets.KEY_BASE64 }}" | base64 -d > android/app/app.key
+      - name: Write signing config
+        run: echo "${{ secrets.SIGNING_CONFIG }}" > android/key.properties
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease --console=plain
