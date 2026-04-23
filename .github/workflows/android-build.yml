@@ -18,15 +18,45 @@ jobs:
           java-version: '17'
       - uses: android-actions/setup-android@v3
       - run: yarn install --frozen-lockfile
-      - run: echo '{}' > google-services.json
+      - name: Create google-services.json
+        run: |
+          cat > google-services.json << 'JSONEOF'
+          {
+            "project_info": {
+              "project_number": "123456789",
+              "project_id": "placeholder",
+              "storage_bucket": "placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789:android:placeholder",
+                  "android_client_info": {
+                    "package_name": "com.gorai.ragionare"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "placeholder-key"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSONEOF
       - run: npx expo prebuild --clean --platform android
       - run: echo "${{ secrets.KEY_BASE64 }}" | base64 -d > android/app/app.key
       - name: Write signing config
         run: |
           echo "${{ secrets.SIGNING_CONFIG }}" > android/key.properties
-          # Remove quotes from values
           sed -i 's/^\(storePassword\|keyPassword\|keyAlias\|storeFile\)="\([^"]*\)"/\1=\2/g' android/key.properties
-          cat android/key.properties
       - name: Test Gradle
         working-directory: android
         run: ./gradlew tasks --no-daemon
