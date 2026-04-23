@@ -9,8 +9,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      NODE_VERSION: 22
-      JAVA_VERSION: 17
+      NODE_VERSION: '22'
+      JAVA_VERSION: '17'
 
     steps:
       - name: Checkout repository
@@ -34,17 +34,14 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      # 生成原生 Android 工程（managed Expo 项目需要先 prebuild）
       - name: Expo Prebuild
         run: npx expo prebuild --clean --platform android
 
-      # 将 base64 签名密钥解码为 android/app/app.key
       - name: Decode signing keystore
         working-directory: android/app
         run: |
           echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app.key
 
-      # 将签名配置写入 key.properties，并去掉值两侧可能的引号，避免 Gradle 把引号当成密码的一部分
       - name: Write signing properties
         working-directory: android
         run: |
@@ -53,15 +50,13 @@ jobs:
           PROPS
           sed -i 's/^\(storePassword\|keyPassword\|keyAlias\|storeFile\)="\([^"]*\)"/\1=\2/g' key.properties
 
-      # 注入 ABI split：仅打包 arm64-v8a，产物即为 app-arm64-v8a-release.apk
-      - name: Enable ABI split (arm64-v8a only)
+      - name: Enable ABI split
         working-directory: android/app
         run: |
           node << 'NODE_EOF'
           const fs = require('fs');
           const file = 'build.gradle';
           let content = fs.readFileSync(file, 'utf8');
-
           if (!content.includes('splits')) {
             const block = `
     splits {
@@ -92,8 +87,6 @@ jobs:
           path: android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
           if-no-files-found: error
 
-      # 如需自动发版，请将 Token 存入仓库 Secrets 并命名为 GH_TOKEN
-      # 若不需要，可直接删除下面整个步骤
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
