@@ -35,11 +35,12 @@ jobs:
       - name: Enable ABI split
         working-directory: android/app
         run: |
-          node -e "
+          cat > /tmp/inject_abi.js << 'SCRIPT'
           const fs = require('fs');
-          let c = fs.readFileSync('build.gradle','utf8');
-          if (!c.includes('splits')) {
-            const b = \`
+          const file = 'build.gradle';
+          let content = fs.readFileSync(file, 'utf8');
+          if (!content.includes('splits')) {
+            const block = `
     splits {
         abi {
             enable true
@@ -47,12 +48,16 @@ jobs:
             include 'arm64-v8a'
             universalApk false
         }
-    }\`;
-            const i = c.indexOf('android {');
-            if (i !== -1) c = c.slice(0, i+9) + b + c.slice(i+9);
+    }`;
+            const idx = content.indexOf('android {');
+            if (idx !== -1) {
+              const insertPos = idx + 'android {'.length;
+              content = content.slice(0, insertPos) + block + content.slice(insertPos);
+            }
           }
-          fs.writeFileSync('build.gradle', c);
-          "
+          fs.writeFileSync(file, content);
+          SCRIPT
+          node /tmp/inject_abi.js
 
       - name: Build APK
         working-directory: android
