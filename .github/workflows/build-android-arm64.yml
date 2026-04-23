@@ -33,8 +33,8 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Check Expo version
-        run: npx expo --version
+      - name: Create google-services.json placeholder
+        run: echo '{}' > google-services.json
 
       - name: Expo Prebuild
         run: npx expo prebuild --clean --platform android
