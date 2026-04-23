@@ -57,39 +57,12 @@ jobs:
         run: |
           echo "${{ secrets.SIGNING_CONFIG }}" > android/key.properties
           sed -i 's/^\(storePassword\|keyPassword\|keyAlias\|storeFile\)="\([^"]*\)"/\1=\2/g' android/key.properties
-      - name: Enable ABI split for arm64-v8a
-        working-directory: android/app
-        run: |
-          python3 -c "
-          import re
-          with open('build.gradle', 'r') as f:
-              content = f.read()
-          if 'splits' not in content:
-              block = '''    splits {
-        abi {
-            enable true
-            reset()
-            include 'arm64-v8a'
-            universalApk false
-        }
-    }'''
-              content = content.replace('android {', 'android {\n' + block, 1)
-              with open('build.gradle', 'w') as f:
-                  f.write(content)
-              print('ABI split injected')
-          else:
-              print('ABI split already exists')
-          "
-          grep -A 8 "splits" build.gradle
-      - name: Build APK
-        working-directory: android
-        timeout-minutes: 45
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
-      - name: List outputs
-        run: ls -la android/app/build/outputs/apk/release/
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - run: |
+          cd android
+          ./gradlew :app:assembleRelease --no-daemon
+      - run: ls -la android/app/build/outputs/apk/release/
+      - uses: actions/upload-artifact@v4
         with:
           name: app-arm64-v8a-release
-          path: android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
