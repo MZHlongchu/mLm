@@ -24,7 +24,44 @@ jobs:
       - name: Decode keystore
         run: echo "${{ secrets.KEY_BASE64 }}" | base64 -d > android/app/app.key
       - name: Write signing config
-        run: echo "${{ secrets.SIGNING_CONFIG }}" > android/key.properties
+        run: |
+          echo "${{ secrets.SIGNING_CONFIG }}" > android/key.properties
+          cat android/key.properties
+      - name: Enable ABI split
+        working-directory: android/app
+        run: |
+          cat > /tmp/inject.js << 'SCRIPT'
+          const fs = require('fs');
+          let c = fs.readFileSync('build.gradle','utf8');
+          if (!c.includes('splits')) {
+            const b = `
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a'
+            universalApk false
+        }
+    }`;
+            const i = c.indexOf('android {');
+            if (i !== -1) {
+              const p = i + 'android {'.length;
+              c = c.slice(0, p) + b + c.slice(p);
+            }
+          }
+          fs.writeFileSync('build.gradle', c);
+          SCRIPT
+          node /tmp/inject.js
+          grep -A 10 "splits" build.gradle || echo "No splits found"
       - name: Build APK
         working-directory: android
-        run: ./gradlew :app:assembleRelease --console=plain
+        timeout-minutes: 45
+        run: ./gradlew :app:assembleRelease --console=plain --info | tee /tmp/gradle.log
+      - name: List outputs
+        run: ls -la android/app/build/outputs/apk/release/
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-arm64-v8a-release
+          path: android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
+          if-no-files-found: warn
