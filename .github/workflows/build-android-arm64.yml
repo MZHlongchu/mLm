@@ -1,4 +1,4 @@
-name: Build Android arm64-v8a Release APK
+name: Build Android APK
 
 on:
   workflow_dispatch:
@@ -8,89 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      NODE_VERSION: '22'
-      JAVA_VERSION: '17'
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
-
-      - name: Setup JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: ${{ env.JAVA_VERSION }}
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Expo Prebuild
-        run: npx expo prebuild --clean --platform android
-
-      - name: Decode signing keystore
-        working-directory: android/app
-        run: echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app.key
-
-      - name: Write signing properties
-        working-directory: android
-        run: |
-          printf '%s\n' '${{ secrets.SIGNING_CONFIG }}' > key.properties
-          sed -i 's/^\(storePassword\|keyPassword\|keyAlias\|storeFile\)="\([^"]*\)"/\1=\2/g' key.properties
-
-      - name: Enable ABI split
-        working-directory: android/app
-        run: |
-          node -e "
-          const fs = require('fs');
-          const file = 'build.gradle';
-          let content = fs.readFileSync(file, 'utf8');
-          if (!content.includes('splits')) {
-            const block = \`
-    splits {
-        abi {
-            enable true
-            reset()
-            include 'arm64-v8a'
-            universalApk false
-        }
-    }\`;
-            const idx = content.indexOf('android {');
-            if (idx !== -1) {
-              const insertPos = idx + 'android {'.length;
-              content = content.slice(0, insertPos) + block + content.slice(insertPos);
-            }
-          }
-          fs.writeFileSync(file, content);
-          "
-
-      - name: Build Release APK
-        working-directory: android
-        run: ./gradlew :app:assembleRelease
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-arm64-v8a-release
-          path: android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
-          if-no-files-found: error
-
-      - name: Create GitHub Release
-        if: github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
-          tag_name: v${{ github.run_number }}-${{ github.sha }}
-          name: Release v${{ github.run_number }}
-          draft: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      - name: Hello
+        run: echo "Hello Build"
