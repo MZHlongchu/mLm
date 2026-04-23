@@ -39,19 +39,16 @@ jobs:
       - name: Expo Prebuild
         run: npx expo prebuild --clean --platform android
 
-      - name: Check android directory
-        run: ls -la android/app/
-
-      - name: Decode signing keystore
-        working-directory: android/app
-        run: echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app.key
-
-      - name: Write signing properties
-        working-directory: android
+      - name: Prepare build files
         run: |
-          printf '%s\n' '${{ secrets.SIGNING_CONFIG }}' > key.properties
-          echo "--- key.properties content ---"
-          cat key.properties
+          # 解码base64编码的keystore文件
+          echo "${{ secrets.KEY_BASE64 }}" | base64 -d > android/app/app.key
+          
+          # 写入签名配置到android/key.properties
+          cat << 'PROPS' > android/key.properties
+          ${{ secrets.SIGNING_CONFIG }}
+          PROPS
+          sed -i 's/^\(storePassword\|keyPassword\|keyAlias\|storeFile\)="\([^"]*\)"/\1=\2/g' android/key.properties
 
       - name: Enable ABI split (arm64-v8a only)
         working-directory: android/app
