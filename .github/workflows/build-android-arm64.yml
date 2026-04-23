@@ -39,14 +39,58 @@ jobs:
       - name: Expo Prebuild
         run: npx expo prebuild --clean --platform android
 
+      - name: Check android directory
+        run: ls -la android/app/
+
       - name: Decode signing keystore
         working-directory: android/app
         run: echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app.key
 
       - name: Write signing properties
         working-directory: android
-        run: printf '%s\n' '${{ secrets.SIGNING_CONFIG }}' > key.properties
+        run: |
+          printf '%s\n' '${{ secrets.SIGNING_CONFIG }}' > key.properties
+          echo "--- key.properties content ---"
+          cat key.properties
+
+      - name: Enable ABI split (arm64-v8a only)
+        working-directory: android/app
+        run: |
+          node -e "
+          const fs = require('fs');
+          const file = 'build.gradle';
+          let content = fs.readFileSync(file, 'utf8');
+          if (!content.includes('splits')) {
+            const block = \`
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a'
+            universalApk false
+        }
+    }\`;
+            const idx = content.indexOf('android {');
+            if (idx !== -1) {
+              const insertPos = idx + 'android {'.length;
+              content = content.slice(0, insertPos) + block + content.slice(insertPos);
+            }
+          }
+          fs.writeFileSync(file, content);
+          console.log('ABI split injected');
+          "
 
       - name: Build Release APK
         working-directory: android
-        run: ./gradlew :app:assembleRelease
+        timeout-minutes: 30
+        run: ./gradlew :app:assembleRelease --console=plain --info
+
+      - name: List output files
+        run: ls -la android/app/build/outputs/apk/release/
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-arm64-v8a-release
+          path: android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
+          if-no-files-found: warn
