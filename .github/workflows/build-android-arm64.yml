@@ -8,8 +8,43 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NODE_VERSION: '22'
+      JAVA_VERSION: '17'
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Hello
-        run: echo "Hello Build"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Expo Prebuild
+        run: npx expo prebuild --clean --platform android
+
+      - name: Decode signing keystore
+        working-directory: android/app
+        run: echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app.key
+
+      - name: Write signing properties
+        working-directory: android
+        run: printf '%s\n' '${{ secrets.SIGNING_CONFIG }}' > key.properties
+
+      - name: Build Release APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease
